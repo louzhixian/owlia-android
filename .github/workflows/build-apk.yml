@@ -37,17 +37,10 @@ jobs:
         run: |
           echo "Downloading bootstrap archives from owlia-packages releases..."
           cd app/src/main/cpp
-          for arch in aarch64 arm i686 x86_64; do
-            url="https://github.com/louzhixian/owlia-packages/releases/latest/download/bootstrap-${arch}.zip"
-            echo "Trying ${url}..."
-            if curl -fsSL -o "bootstrap-${arch}.zip" "$url" 2>/dev/null; then
-              echo "✅ Downloaded bootstrap-${arch}.zip ($(stat --printf='%s' bootstrap-${arch}.zip) bytes)"
-            else
-              echo "⚠️ bootstrap-${arch}.zip not available, creating empty placeholder"
-              touch "bootstrap-${arch}.zip"
-            fi
-          done
-          ls -la bootstrap-*.zip
+          url="https://github.com/louzhixian/owlia-packages/releases/latest/download/bootstrap-aarch64.zip"
+          echo "Downloading ${url}..."
+          curl -fsSL -o "bootstrap-aarch64.zip" "$url"
+          echo "✅ Downloaded bootstrap-aarch64.zip ($(stat --printf='%s' bootstrap-aarch64.zip) bytes)"
 
       - name: Decode signing key
         env:
@@ -121,27 +114,6 @@ jobs:
           name: ${{ env.APK_BASENAME_PREFIX }}_arm64-v8a
           path: |
             ${{ env.APK_DIR_PATH }}/*arm64-v8a*.apk
-
-      - name: Upload armeabi-v7a APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APK_BASENAME_PREFIX }}_armeabi-v7a
-          path: |
-            ${{ env.APK_DIR_PATH }}/*armeabi-v7a*.apk
-
-      - name: Upload x86_64 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APK_BASENAME_PREFIX }}_x86_64
-          path: |
-            ${{ env.APK_DIR_PATH }}/*x86_64*.apk
-
-      - name: Upload x86 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APK_BASENAME_PREFIX }}_x86
-          path: |
-            ${{ env.APK_DIR_PATH }}/*x86*.apk
 
       - name: Upload SHA256 checksums
         uses: actions/upload-artifact@v4

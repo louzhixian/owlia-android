@@ -71,7 +71,7 @@ android {
                 enable ((gradle.startParameter.taskNames.any { it.contains("Debug") } && splitAPKsForDebugBuilds == "1") ||
                     (gradle.startParameter.taskNames.any { it.contains("Release") } && splitAPKsForReleaseBuilds == "1"))
                 reset ()
-                include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+                include 'arm64-v8a'
                 universalApk true
             }
         }
@@ -201,9 +201,6 @@ task downloadBootstraps() {
         // Download bootstrap packages from owlia-packages latest release
         // Supports both apt-android-7 and apt-android-5 variants
         downloadBootstrap("aarch64")
-        downloadBootstrap("arm")
-        downloadBootstrap("i686")
-        downloadBootstrap("x86_64")
     }
 }
 
