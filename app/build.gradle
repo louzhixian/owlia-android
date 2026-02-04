@@ -168,9 +168,10 @@ def downloadBootstrap(String arch) {
     def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
     def file = new File(projectDir, localUrl)
 
-    // Always re-download to get latest bootstrap from owlia-packages
-    if (file.exists()) {
-        file.delete()
+    // Skip if already downloaded (e.g., by CI workflow)
+    if (file.exists() && file.length() > 0) {
+        logger.quiet("bootstrap-" + arch + ".zip already exists, skipping download")
+        return
     }
 
     def remoteUrl = "https://github.com/louzhixian/owlia-packages/releases/latest/download/bootstrap-" + arch + ".zip"

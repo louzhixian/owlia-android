@@ -33,6 +33,22 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Download bootstrap archives
+        run: |
+          echo "Downloading bootstrap archives from owlia-packages releases..."
+          cd app/src/main/cpp
+          for arch in aarch64 arm i686 x86_64; do
+            url="https://github.com/louzhixian/owlia-packages/releases/latest/download/bootstrap-${arch}.zip"
+            echo "Trying ${url}..."
+            if curl -fsSL -o "bootstrap-${arch}.zip" "$url" 2>/dev/null; then
+              echo "✅ Downloaded bootstrap-${arch}.zip ($(stat --printf='%s' bootstrap-${arch}.zip) bytes)"
+            else
+              echo "⚠️ bootstrap-${arch}.zip not available, creating empty placeholder"
+              touch "bootstrap-${arch}.zip"
+            fi
+          done
+          ls -la bootstrap-*.zip
+
       - name: Decode signing key
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
