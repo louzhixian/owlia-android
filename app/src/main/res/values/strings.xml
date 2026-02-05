@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!DOCTYPE resources [
-    <!ENTITY TERMUX_PACKAGE_NAME "com.owlia.app">
+    <!ENTITY TERMUX_PACKAGE_NAME "com.termux">
     <!ENTITY TERMUX_APP_NAME "Owlia">
     <!ENTITY TERMUX_API_APP_NAME "Owlia:API">
     <!ENTITY TERMUX_BOOT_APP_NAME "Owlia:Boot">
