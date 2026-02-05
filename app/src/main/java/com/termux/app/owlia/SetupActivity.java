@@ -124,8 +124,7 @@ public class SetupActivity extends AppCompatActivity {
                 case STEP_INSTALL:
                     return new InstallFragment();
                 case STEP_API_KEY:
-                    return new PlaceholderFragment("API Key Setup",
-                        "This step will configure AI provider authentication.\n\n(To be implemented in GUI-M1)");
+                    return new AuthFragment();
                 case STEP_CHANNEL:
                     return new PlaceholderFragment("Channel Setup",
                         "This step will connect to Telegram/Discord.\n\n(To be implemented in GUI-M2)");
