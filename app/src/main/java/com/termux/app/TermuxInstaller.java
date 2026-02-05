@@ -431,6 +431,9 @@ final class TermuxInstaller {
                 "        termux-wake-lock\n" +
                 "        echo \"✓ Wake lock enabled\"\n" +
                 "    fi\n\n" +
+                "    # Fix permissions on bootstrap binaries (zip may strip exec bits)\n" +
+                "    chmod +x $PREFIX/bin/* 2>/dev/null\n" +
+                "    chmod +x $PREFIX/lib/node_modules/npm/bin/* 2>/dev/null\n\n" +
                 "    # Fix any broken dependencies from bootstrap\n" +
                 "    apt --fix-broken install -y 2>/dev/null\n\n" +
                 "    # Set up a reliable mirror and update package lists\n" +
@@ -438,17 +441,17 @@ final class TermuxInstaller {
                 "    sed -i 's|^\\(deb.*\\)|#\\1|' $PREFIX/etc/apt/sources.list 2>/dev/null\n" +
                 "    echo 'deb https://packages.termux.dev/apt/termux-main stable main' >> $PREFIX/etc/apt/sources.list\n" +
                 "    pkg update -y && echo \"✓ Packages updated\" || echo \"✗ Package update failed\"\n\n" +
-                "    # Ensure required packages are installed (nodejs-lts includes npm, proot for /tmp)\n" +
+                "    # Ensure proot is available (node + npm come from bootstrap)\n" +
                 "    echo \"Checking required packages...\"\n" +
                 "    apt --fix-broken install -y 2>/dev/null\n" +
-                "    pkg install nodejs-lts proot -y && echo \"✓ Packages ready\" || {\n" +
+                "    pkg install proot -y && echo \"✓ Packages ready\" || {\n" +
                 "        echo \"✗ Package installation failed\"\n" +
                 "        OWLIA_SETUP_OK=0\n" +
                 "    }\n\n" +
                 "    # Verify npm is available\n" +
                 "    if ! command -v npm >/dev/null 2>&1; then\n" +
-                "        echo \"✗ npm not found. Try: pkg install nodejs-lts\"\n" +
-                "        OWLIA_SETUP_OK=0\n" +
+                "        echo \"✗ npm not found. Trying to install...\"\n" +
+                "        pkg install npm -y || OWLIA_SETUP_OK=0\n" +
                 "    fi\n\n" +
                 "    # Install OpenClaw (--ignore-scripts to skip native compilation)\n" +
                 "    if [ $OWLIA_SETUP_OK -eq 1 ]; then\n" +
