@@ -388,7 +388,8 @@ final class TermuxInstaller {
 
     /**
      * Creates the Owlia first-run setup script that will be executed on first terminal session.
-     * This script enables wake lock, installs OpenClaw, and displays a welcome message.
+     * This script enables wake lock, installs required packages and OpenClaw, sets up the
+     * environment for /tmp support via proot, and displays a welcome message.
      */
     private static void createOwliaFirstRunScript() {
         try {
@@ -398,14 +399,29 @@ final class TermuxInstaller {
                 profileDir.mkdirs();
             }
 
-            // Create the first-run script in profile.d (sourced by login shells)
+            // Create persistent environment script (sourced every login)
+            File envScript = new File(profileDir, "owlia-env.sh");
+            String envContent =
+                "# Owlia environment setup\n" +
+                "export TMPDIR=$PREFIX/tmp\n" +
+                "mkdir -p $TMPDIR\n\n" +
+                "# Run openclaw through termux-chroot for /tmp support\n" +
+                "alias openclaw='termux-chroot openclaw'\n";
+
+            try (FileOutputStream fos = new FileOutputStream(envScript)) {
+                fos.write(envContent.getBytes());
+            }
+            //noinspection OctalInteger
+            Os.chmod(envScript.getAbsolutePath(), 0755);
+
+            // Create the first-run script in profile.d (sourced by login shells, runs once)
             File firstRunScript = new File(profileDir, "owlia-first-run.sh");
             String scriptContent =
                 "# Owlia first-run setup script\n" +
                 "# This script runs once on first terminal session after bootstrap installation\n\n" +
                 "OWLIA_FIRST_RUN_MARKER=\"$HOME/.owlia_first_run_done\"\n\n" +
                 "if [ ! -f \"$OWLIA_FIRST_RUN_MARKER\" ]; then\n" +
-                "    echo \"🦉 Welcome to Owlia!\"\n" +
+                "    echo \"\\U0001F989 Welcome to Owlia!\"\n" +
                 "    echo \"\"\n" +
                 "    echo \"Setting up your environment...\"\n" +
                 "    echo \"\"\n\n" +
@@ -414,17 +430,21 @@ final class TermuxInstaller {
                 "        termux-wake-lock\n" +
                 "        echo \"✓ Wake lock enabled\"\n" +
                 "    fi\n\n" +
-                "    # Install OpenClaw\n" +
+                "    # Set up a reliable mirror and update package lists\n" +
+                "    echo \"Updating package lists...\"\n" +
+                "    sed -i 's|^\\(deb.*\\)|#\\1|' $PREFIX/etc/apt/sources.list 2>/dev/null\n" +
+                "    echo 'deb https://packages.termux.dev/apt/termux-main stable main' >> $PREFIX/etc/apt/sources.list\n" +
+                "    pkg update -y && echo \"✓ Packages updated\" || echo \"✗ Package update failed\"\n\n" +
+                "    # Install required packages: nodejs-lts, npm, and proot for /tmp support\n" +
+                "    echo \"Installing required packages...\"\n" +
+                "    pkg install nodejs-lts npm proot -y && echo \"✓ Packages installed\" || echo \"✗ Package installation failed\"\n\n" +
+                "    # Install OpenClaw (--ignore-scripts to skip native compilation)\n" +
                 "    echo \"Installing OpenClaw...\"\n" +
-                "    if command -v npm >/dev/null 2>&1; then\n" +
-                "        npm install -g openclaw@latest --ignore-scripts && echo \"✓ OpenClaw installed successfully\" || echo \"✗ OpenClaw installation failed\"\n" +
-                "    else\n" +
-                "        echo \"⚠ npm not found. Install Node.js first: pkg install nodejs\"\n" +
-                "    fi\n\n" +
+                "    npm install -g openclaw@latest --ignore-scripts && echo \"✓ OpenClaw installed successfully\" || echo \"✗ OpenClaw installation failed\"\n\n" +
                 "    # Mark first run as complete\n" +
                 "    touch \"$OWLIA_FIRST_RUN_MARKER\"\n" +
                 "    echo \"\"\n" +
-                "    echo \"🦉 Setup complete! Run 'openclaw' to get started.\"\n" +
+                "    echo \"\\U0001F989 Setup complete! Run 'openclaw' to get started.\"\n" +
                 "    echo \"\"\n" +
                 "fi\n";
 
@@ -436,7 +456,7 @@ final class TermuxInstaller {
             //noinspection OctalInteger
             Os.chmod(firstRunScript.getAbsolutePath(), 0755);
 
-            Logger.logInfo(LOG_TAG, "Created Owlia first-run script at " + firstRunScript.getAbsolutePath());
+            Logger.logInfo(LOG_TAG, "Created Owlia environment and first-run scripts in " + profileDir.getAbsolutePath());
 
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to create Owlia first-run script", e);
