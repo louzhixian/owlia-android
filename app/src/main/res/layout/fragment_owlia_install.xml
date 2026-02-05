@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <!-- Owl icon -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🦉"
+        android:textSize="64sp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Owlia title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Owlia"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Tagline -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Your AI assistant,\nrunning on your phone."
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/dividerHorizontal"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Installation steps -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="24dp">
+
+        <!-- Step 0: Permissions -->
+        <LinearLayout
+            android:id="@+id/install_step_0"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/install_step_0_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:text="○"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/install_step_0_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Environment ready"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Step 1: Verify Node -->
+        <LinearLayout
+            android:id="@+id/install_step_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/install_step_1_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:text="○"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/install_step_1_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Verifying Node.js"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Step 2: Install OpenClaw -->
+        <LinearLayout
+            android:id="@+id/install_step_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/install_step_2_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:text="○"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/install_step_2_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Installing OpenClaw"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Status message -->
+    <TextView
+        android:id="@+id/install_status_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="This takes about a minute"
+        android:textSize="13sp"
+        android:alpha="0.7"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Error container (hidden by default) -->
+    <LinearLayout
+        android:id="@+id/install_error_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="?android:attr/colorBackground"
+        android:padding="16dp"
+        android:layout_marginTop="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/install_error_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="#D32F2F"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/install_retry_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Retry"
+            android:layout_gravity="start" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -52,18 +52,13 @@
 
         <activity
             android:name=".app.TermuxActivity"
-            android:exported="true"
+            android:exported="false"
             android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
             android:label="@string/application_name"
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
             tools:targetApi="n">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -88,6 +83,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Owlia GUI Components -->
+        <activity
+            android:name=".app.owlia.OwliaLauncherActivity"
+            android:exported="true"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".app.owlia.SetupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
+        <service
+            android:name=".app.owlia.OwliaService"
+            android:exported="false" />
 
         <activity
             android:name=".app.activities.HelpActivity"
