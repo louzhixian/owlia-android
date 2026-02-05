@@ -272,8 +272,16 @@ public class ChannelFragment extends Fragment {
                 }
             } else {
                 Logger.logError(LOG_TAG, "Failed to start gateway: " + result.stderr);
+                // Show actual error to user
+                String errorMsg = result.stderr;
+                if (errorMsg == null || errorMsg.isEmpty()) {
+                    errorMsg = result.stdout;
+                }
+                if (errorMsg == null || errorMsg.isEmpty()) {
+                    errorMsg = "Unknown error (exit code: " + result.exitCode + ")";
+                }
                 Toast.makeText(requireContext(),
-                    "Failed to start gateway. Check logs for details.",
+                    "Failed to start gateway:\n" + errorMsg,
                     Toast.LENGTH_LONG).show();
 
                 // Re-enable buttons

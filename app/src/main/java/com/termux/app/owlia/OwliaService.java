@@ -230,31 +230,42 @@ public class OwliaService extends Service {
     }
 
     /**
+     * Build a command with proper Termux environment
+     */
+    private String withTermuxEnv(String command) {
+        return "export HOME=" + TermuxConstants.TERMUX_HOME_DIR_PATH + " && " +
+               "export PREFIX=" + TermuxConstants.TERMUX_PREFIX_DIR_PATH + " && " +
+               "export PATH=$PREFIX/bin:$PATH && " +
+               "export TMPDIR=$PREFIX/tmp && " +
+               command;
+    }
+
+    /**
      * Start the OpenClaw gateway
      */
     public void startGateway(CommandCallback callback) {
-        executeCommand("openclaw gateway start", callback);
+        executeCommand(withTermuxEnv("openclaw gateway start"), callback);
     }
 
     /**
      * Stop the OpenClaw gateway
      */
     public void stopGateway(CommandCallback callback) {
-        executeCommand("openclaw gateway stop", callback);
+        executeCommand(withTermuxEnv("openclaw gateway stop"), callback);
     }
 
     /**
      * Restart the OpenClaw gateway
      */
     public void restartGateway(CommandCallback callback) {
-        executeCommand("openclaw gateway restart", callback);
+        executeCommand(withTermuxEnv("openclaw gateway restart"), callback);
     }
 
     /**
      * Get the OpenClaw gateway status
      */
     public void getGatewayStatus(CommandCallback callback) {
-        executeCommand("openclaw gateway status", callback);
+        executeCommand(withTermuxEnv("openclaw gateway status"), callback);
     }
 
     /**
