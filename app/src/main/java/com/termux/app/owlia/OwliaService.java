@@ -319,7 +319,7 @@ public class OwliaService extends Service {
      * Check if OpenClaw config exists
      */
     public static boolean isOpenclawConfigured() {
-        return new java.io.File(TermuxConstants.TERMUX_HOME_DIR_PATH + "/.config/openclaw/openclaw.json").exists();
+        return new java.io.File(TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/openclaw.json").exists();
     }
 
     /**
@@ -347,40 +347,66 @@ public class OwliaService extends Service {
                "$PREFIX/bin/termux-chroot openclaw " + openclawArgs;
     }
 
+    private static final String GATEWAY_PID_FILE = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/gateway.pid";
+    private static final String GATEWAY_LOG_FILE = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/gateway.log";
+
     public void startGateway(CommandCallback callback) {
-        executeCommand(withTermuxChroot("gateway start"), callback);
+        // Kill any existing gateway process first
+        String cmd = "if [ -f " + GATEWAY_PID_FILE + " ]; then " +
+            "kill $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null; rm -f " + GATEWAY_PID_FILE + "; sleep 1; " +
+            "fi && " +
+            // Start gateway in background, log to file, save PID
+            withTermuxChroot("gateway run") + " >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
+            "echo $! > " + GATEWAY_PID_FILE + " && " +
+            "sleep 3 && " +
+            // Verify the process is still alive
+            "if kill -0 $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null; then " +
+            "echo 'started'; " +
+            "else " +
+            "echo 'failed'; " +
+            "tail -5 " + GATEWAY_LOG_FILE + " >&2; " +
+            "rm -f " + GATEWAY_PID_FILE + "; " +
+            "exit 1; fi";
+        executeCommand(cmd, callback);
     }
 
     public void stopGateway(CommandCallback callback) {
-        executeCommand(withTermuxChroot("gateway stop"), callback);
+        String cmd = "if [ -f " + GATEWAY_PID_FILE + " ]; then " +
+            "kill $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null && echo 'stopped' || echo 'not running'; " +
+            "rm -f " + GATEWAY_PID_FILE + "; " +
+            "else echo 'not running'; fi";
+        executeCommand(cmd, callback);
     }
 
     public void restartGateway(CommandCallback callback) {
-        executeCommand(withTermuxChroot("gateway restart"), callback);
+        stopGateway(result -> {
+            // Brief delay to let process fully terminate
+            mHandler.postDelayed(() -> startGateway(callback), 1000);
+        });
     }
 
     public void getGatewayStatus(CommandCallback callback) {
-        executeCommand(withTermuxChroot("gateway status"), callback);
+        isGatewayRunning(callback);
     }
 
-    // isGatewayRunning and getGatewayUptime use pgrep (no chroot needed)
-
     /**
-     * Check if the gateway is currently running
+     * Check if the gateway is currently running using PID file
      */
     public void isGatewayRunning(CommandCallback callback) {
-        executeCommand("pgrep -f 'node.*openclaw.*gateway' > /dev/null && echo 'running' || echo 'stopped'", callback);
+        String cmd = "if [ -f " + GATEWAY_PID_FILE + " ] && kill -0 $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null; then " +
+            "echo 'running'; else echo 'stopped'; fi";
+        executeCommand(cmd, callback);
     }
 
     /**
      * Get gateway uptime in a human-readable format
-     * Returns uptime string or null if gateway is not running
      */
     public void getGatewayUptime(CommandCallback callback) {
-        // Get the gateway process start time and calculate uptime
-        String cmd = "if pgrep -f 'node.*openclaw.*gateway' > /dev/null; then " +
-            "pid=$(pgrep -f 'node.*openclaw.*gateway' | head -1); " +
+        String cmd = "if [ -f " + GATEWAY_PID_FILE + " ]; then " +
+            "pid=$(cat " + GATEWAY_PID_FILE + "); " +
+            "if kill -0 $pid 2>/dev/null; then " +
             "ps -p $pid -o etime= 2>/dev/null || echo '—'; " +
+            "else echo '—'; fi; " +
             "else echo '—'; fi";
         executeCommand(cmd, callback);
     }

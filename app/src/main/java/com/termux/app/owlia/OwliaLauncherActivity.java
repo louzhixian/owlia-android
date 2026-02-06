@@ -1,10 +1,8 @@
 package com.termux.app.owlia;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -12,136 +10,226 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.termux.R;
-import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxInstaller;
 import com.termux.shared.logger.Logger;
 
 import org.json.JSONObject;
 
 /**
- * Launcher activity that routes to the appropriate screen based on installation state.
+ * Launcher activity with two phases:
  *
- * Routing logic:
- * 1. If bootstrap not extracted -> Wait for TermuxInstaller (show progress)
+ * Phase 1 (Welcome): Guided permission requests — user taps buttons to grant
+ * notification permission and battery optimization exemption, with clear explanations.
+ *
+ * Phase 2 (Loading): Routes to the appropriate screen based on installation state:
+ * 1. If bootstrap not extracted -> Wait for TermuxInstaller
  * 2. If OpenClaw not installed -> SetupActivity (auto-install)
  * 3. If OpenClaw not configured -> SetupActivity (auth + channel setup)
- * 4. All ready -> DashboardActivity (TODO: implement later, for now go to TermuxActivity)
+ * 4. All ready -> DashboardActivity
  */
 public class OwliaLauncherActivity extends Activity {
 
     private static final String LOG_TAG = "BotDropLauncherActivity";
-    private static final int REQUEST_CODE_NOTIFICATIONS = 1001;
+    private static final int REQUEST_CODE_NOTIFICATION_SETTINGS = 1001;
     private static final int REQUEST_CODE_BATTERY_OPTIMIZATION = 1002;
-    
+
+    // Views
+    private View mWelcomeContainer;
+    private View mLoadingContainer;
     private TextView mStatusText;
+    private Button mNotificationButton;
+    private Button mBatteryButton;
+    private Button mContinueButton;
+    private TextView mNotificationStatus;
+    private TextView mBatteryStatus;
+
     private Handler mHandler = new Handler(Looper.getMainLooper());
-    private boolean mPermissionsRequested = false;
+    private boolean mPermissionsPhaseComplete = false;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_botdrop_launcher);
 
+        mWelcomeContainer = findViewById(R.id.welcome_container);
+        mLoadingContainer = findViewById(R.id.loading_container);
         mStatusText = findViewById(R.id.launcher_status_text);
+        mNotificationButton = findViewById(R.id.btn_notification_permission);
+        mBatteryButton = findViewById(R.id.btn_battery_permission);
+        mContinueButton = findViewById(R.id.btn_continue);
+        mNotificationStatus = findViewById(R.id.notification_status);
+        mBatteryStatus = findViewById(R.id.battery_status);
+
+        mNotificationButton.setOnClickListener(v -> openNotificationSettings());
+        mBatteryButton.setOnClickListener(v -> requestBatteryOptimization());
+        mContinueButton.setOnClickListener(v -> {
+            mPermissionsPhaseComplete = true;
+            showLoadingPhase();
+            mHandler.postDelayed(this::checkAndRoute, 300);
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        
-        // Request permissions when activity is in foreground (visible to user)
-        if (!mPermissionsRequested) {
-            mPermissionsRequested = true;
-            // Delay slightly to ensure activity is fully visible
-            mHandler.postDelayed(this::requestAllPermissions, 300);
-        } else {
-            // Already requested permissions, proceed with routing
-            mHandler.postDelayed(this::checkAndRoute, 500);
+
+        if (mPermissionsPhaseComplete) {
+            // Already past the welcome screen
+            showLoadingPhase();
+            mHandler.postDelayed(this::checkAndRoute, 300);
+            return;
         }
+
+        // Check if all permissions are already granted (returning user)
+        if (areNotificationsEnabled() && isBatteryOptimizationExempt()) {
+            Logger.logInfo(LOG_TAG, "All permissions already granted, skipping welcome");
+            mPermissionsPhaseComplete = true;
+            showLoadingPhase();
+            mHandler.postDelayed(this::checkAndRoute, 300);
+            return;
+        }
+
+        // Show welcome screen and update permission status
+        showWelcomePhase();
+        updatePermissionStatus();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Cancel all pending callbacks to prevent memory leak
         mHandler.removeCallbacksAndMessages(null);
     }
 
-    /**
-     * Request all required permissions upfront when activity is visible
-     */
-    private void requestAllPermissions() {
-        // Step 1: Request notification permission (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                Logger.logInfo(LOG_TAG, "Requesting notification permission");
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_CODE_NOTIFICATIONS);
-                return; // Wait for result before continuing
-            }
-        }
-        
-        // Step 2: Request battery optimization exemption
-        requestBatteryOptimizationExemption();
+    // --- Phase management ---
+
+    private void showWelcomePhase() {
+        mWelcomeContainer.setVisibility(View.VISIBLE);
+        mLoadingContainer.setVisibility(View.GONE);
     }
 
-    /**
-     * Request exemption from battery optimization to allow background running
-     */
-    private void requestBatteryOptimizationExemption() {
+    private void showLoadingPhase() {
+        mWelcomeContainer.setVisibility(View.GONE);
+        mLoadingContainer.setVisibility(View.VISIBLE);
+    }
+
+    // --- Permission checks ---
+
+    private boolean areNotificationsEnabled() {
+        return NotificationManagerCompat.from(this).areNotificationsEnabled();
+    }
+
+    private boolean isBatteryOptimizationExempt() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
-                Logger.logInfo(LOG_TAG, "Requesting battery optimization exemption");
-                try {
-                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivityForResult(intent, REQUEST_CODE_BATTERY_OPTIMIZATION);
-                    return; // Wait for result before continuing
-                } catch (Exception e) {
-                    Logger.logError(LOG_TAG, "Failed to request battery optimization exemption: " + e.getMessage());
-                }
-            }
+            return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
         }
-        
-        // All permissions handled, proceed with routing
-        mHandler.postDelayed(this::checkAndRoute, 500);
+        return true; // Pre-Android M: no battery optimization
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        
-        if (requestCode == REQUEST_CODE_NOTIFICATIONS) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Logger.logInfo(LOG_TAG, "Notification permission granted");
+    // --- Permission requests ---
+
+    /**
+     * Open app notification settings page.
+     * targetSdk=28 means requestPermissions(POST_NOTIFICATIONS) is a no-op on Android 13+.
+     * Opening the settings page works reliably across all Android versions.
+     */
+    private void openNotificationSettings() {
+        Logger.logInfo(LOG_TAG, "Opening notification settings");
+        try {
+            Intent intent = new Intent();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
             } else {
-                Logger.logWarn(LOG_TAG, "Notification permission denied");
+                intent.setAction("android.settings.APP_NOTIFICATION_SETTINGS");
+                intent.putExtra("app_package", getPackageName());
+                intent.putExtra("app_uid", getApplicationInfo().uid);
             }
-            // Continue to battery optimization request
-            requestBatteryOptimizationExemption();
+            startActivityForResult(intent, REQUEST_CODE_NOTIFICATION_SETTINGS);
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to open notification settings: " + e.getMessage());
         }
     }
+
+    private void requestBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Logger.logInfo(LOG_TAG, "Requesting battery optimization exemption");
+            try {
+                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivityForResult(intent, REQUEST_CODE_BATTERY_OPTIMIZATION);
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Failed to request battery optimization: " + e.getMessage());
+            }
+        }
+    }
+
+    // --- Permission results ---
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
-        if (requestCode == REQUEST_CODE_BATTERY_OPTIMIZATION) {
-            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            if (pm != null && pm.isIgnoringBatteryOptimizations(getPackageName())) {
+
+        if (requestCode == REQUEST_CODE_NOTIFICATION_SETTINGS) {
+            if (areNotificationsEnabled()) {
+                Logger.logInfo(LOG_TAG, "Notifications enabled");
+            } else {
+                Logger.logWarn(LOG_TAG, "Notifications still disabled");
+            }
+            updatePermissionStatus();
+        } else if (requestCode == REQUEST_CODE_BATTERY_OPTIMIZATION) {
+            if (isBatteryOptimizationExempt()) {
                 Logger.logInfo(LOG_TAG, "Battery optimization exemption granted");
             } else {
                 Logger.logWarn(LOG_TAG, "Battery optimization exemption denied");
             }
-            // Proceed with routing regardless of result
-            mHandler.postDelayed(this::checkAndRoute, 500);
+            updatePermissionStatus();
         }
     }
+
+    // --- UI updates ---
+
+    private void updatePermissionStatus() {
+        boolean notifGranted = areNotificationsEnabled();
+        boolean batteryExempt = isBatteryOptimizationExempt();
+
+        // Notification status
+        if (notifGranted) {
+            mNotificationStatus.setText("✓");
+            mNotificationStatus.setVisibility(View.VISIBLE);
+            mNotificationButton.setEnabled(false);
+            mNotificationButton.setText("Enabled");
+        } else {
+            mNotificationStatus.setVisibility(View.GONE);
+            mNotificationButton.setEnabled(true);
+            mNotificationButton.setText("Allow");
+        }
+
+        // Battery status
+        if (batteryExempt) {
+            mBatteryStatus.setText("✓");
+            mBatteryStatus.setVisibility(View.VISIBLE);
+            mBatteryButton.setEnabled(false);
+            mBatteryButton.setText("Granted");
+        } else {
+            mBatteryStatus.setVisibility(View.GONE);
+            mBatteryButton.setEnabled(true);
+            mBatteryButton.setText("Allow");
+        }
+
+        // Enable continue when both handled
+        mContinueButton.setEnabled(notifGranted && batteryExempt);
+    }
+
+    // --- Routing ---
 
     private void checkAndRoute() {
         // Check 1: Bootstrap installed?
@@ -149,7 +237,6 @@ public class OwliaLauncherActivity extends Activity {
             Logger.logInfo(LOG_TAG, "Bootstrap not ready, waiting for TermuxInstaller");
             mStatusText.setText("Setting up environment...");
 
-            // Wait for bootstrap, then re-check
             TermuxInstaller.setupBootstrapIfNeeded(this, this::checkAndRoute);
             return;
         }
@@ -199,15 +286,11 @@ public class OwliaLauncherActivity extends Activity {
         finish();
     }
 
-    /**
-     * Check if a channel is configured
-     */
     private boolean hasChannelConfigured() {
         try {
             JSONObject config = OwliaConfig.readConfig();
             if (config.has("channels")) {
                 JSONObject channels = config.getJSONObject("channels");
-                // Check if either telegram or discord is configured
                 return channels.has("telegram") || channels.has("discord");
             }
             return false;

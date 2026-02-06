@@ -13,14 +13,14 @@ import java.io.IOException;
 
 /**
  * Helper class for reading and writing OpenClaw configuration.
- * Handles openclaw.json at ~/.config/openclaw/openclaw.json
+ * Handles openclaw.json at ~/.openclaw/openclaw.json
  * 
  * Thread-safe: All file operations are synchronized.
  */
 public class OwliaConfig {
     
     private static final String LOG_TAG = "BotDropConfig";
-    private static final String CONFIG_DIR = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.config/openclaw";
+    private static final String CONFIG_DIR = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw";
     private static final String CONFIG_FILE = CONFIG_DIR + "/openclaw.json";
     
     // Lock for thread-safe file operations
@@ -127,7 +127,16 @@ public class OwliaConfig {
             if (!defaults.has("workspace")) {
                 defaults.put("workspace", "~/botdrop");
             }
-            
+
+            // Ensure gateway.mode=local is set (required for gateway run on Android)
+            if (!config.has("gateway")) {
+                config.put("gateway", new JSONObject());
+            }
+            JSONObject gateway = config.getJSONObject("gateway");
+            if (!gateway.has("mode")) {
+                gateway.put("mode", "local");
+            }
+
             return writeConfig(config);
             
         } catch (JSONException e) {
@@ -196,7 +205,7 @@ public class OwliaConfig {
      */
     private static void writeEnvFile(String provider, String envKey, String credential) {
         synchronized (CONFIG_LOCK) {
-            String envDir = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.config/openclaw";
+            String envDir = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw";
             File envFile = new File(envDir + "/.env");
 
             try {
