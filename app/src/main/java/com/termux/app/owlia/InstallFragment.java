@@ -58,9 +58,11 @@ public class InstallFragment extends Fragment {
             mBound = true;
             Logger.logDebug(LOG_TAG, "Service connected");
 
-            // Auto-start installation (atomic check-and-set to prevent duplicate starts)
-            if (mInstallationStarted.compareAndSet(false, true)) {
-                startInstallation();
+            // Only auto-start if this fragment is actually visible (resumed).
+            // ViewPager2 pre-creates adjacent fragments in STARTED state;
+            // only the visible fragment reaches RESUMED.
+            if (isResumed()) {
+                tryStartInstallation();
             }
         }
 
@@ -109,6 +111,15 @@ public class InstallFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // Fragment is now visible — start installation if service is already bound
+        if (mBound && mService != null) {
+            tryStartInstallation();
+        }
+    }
+
+    @Override
     public void onStop() {
         super.onStop();
         if (mBound) {
@@ -143,6 +154,12 @@ public class InstallFragment extends Fragment {
             }
             mBound = false;
             mService = null;
+        }
+    }
+
+    private void tryStartInstallation() {
+        if (mInstallationStarted.compareAndSet(false, true)) {
+            startInstallation();
         }
     }
 
@@ -187,6 +204,7 @@ public class InstallFragment extends Fragment {
                 // Auto-advance to next step after 1.5 seconds
                 // Track runnable so we can remove it in onDestroyView() if needed
                 mNavigationRunnable = () -> {
+                    if (!isAdded() || !isResumed()) return;
                     SetupActivity activity = (SetupActivity) getActivity();
                     if (activity != null && !activity.isFinishing()) {
                         activity.goToNextStep();

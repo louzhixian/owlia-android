@@ -231,7 +231,7 @@ public class OwliaService extends Service {
                         Logger.logVerbose(LOG_TAG, "install.sh: " + line);
                         parseInstallOutput(line, callback);
                         recentLines.add(line);
-                        if (recentLines.size() > MAX_RECENT) recentLines.removeFirst();
+                        if (recentLines.size() > MAX_RECENT) recentLines.remove(0);
                     }
                 }
 

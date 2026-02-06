@@ -72,10 +72,6 @@ public class ChannelFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Bind to service
-        Intent intent = new Intent(requireContext(), OwliaService.class);
-        requireContext().bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-
         // Find views
         mOpenSetupBotButton = view.findViewById(R.id.channel_open_setup_bot);
         mTokenInput = view.findViewById(R.id.channel_token_input);
@@ -91,10 +87,22 @@ public class ChannelFragment extends Fragment {
     }
 
     @Override
-    public void onDestroyView() {
-        super.onDestroyView();
+    public void onStart() {
+        super.onStart();
+        // Bind to service (matching InstallFragment lifecycle pattern)
+        Intent intent = new Intent(requireActivity(), OwliaService.class);
+        requireActivity().bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
         if (mBound) {
-            requireContext().unbindService(mConnection);
+            try {
+                requireActivity().unbindService(mConnection);
+            } catch (IllegalArgumentException e) {
+                Logger.logDebug(LOG_TAG, "Service was already unbound");
+            }
             mBound = false;
         }
     }

@@ -434,6 +434,7 @@ public class AuthFragment extends Fragment {
             // Auto-advance after short delay
             // Track runnable so we can remove it in onDestroyView() if needed
             mNavigationRunnable = () -> {
+                if (!isAdded() || !isResumed()) return;
                 SetupActivity activity = (SetupActivity) getActivity();
                 if (activity != null && !activity.isFinishing()) {
                     activity.goToNextStep();

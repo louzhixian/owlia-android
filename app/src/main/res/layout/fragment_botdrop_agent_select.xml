@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center_horizontal">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Your Agent"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginTop="48dp"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Agent 1: OpenClaw -->
+    <LinearLayout
+        android:id="@+id/agent_openclaw_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <!-- Icon -->
+        <TextView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="🦞"
+            android:textSize="32sp"
+            android:gravity="center"
+            android:layout_marginEnd="16dp" />
+
+        <!-- Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OpenClaw"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="The AI that actually does things."
+                android:textSize="13sp"
+                android:alpha="0.7"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/agent_openclaw_url"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="openclaw.ai"
+                android:textSize="12sp"
+                android:textColor="#1976D2"
+                android:alpha="0.8" />
+
+        </LinearLayout>
+
+        <!-- Install button -->
+        <Button
+            android:id="@+id/agent_openclaw_install"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Install"
+            android:textSize="13sp"
+            android:minWidth="80dp" />
+
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/dividerHorizontal"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Agent 2: OwliaBot -->
+    <LinearLayout
+        android:id="@+id/agent_owliabot_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical"
+        android:alpha="0.5">
+
+        <!-- Icon -->
+        <TextView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="🦉"
+            android:textSize="32sp"
+            android:gravity="center"
+            android:layout_marginEnd="16dp" />
+
+        <!-- Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OwliaBot"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="A leaner, safer crypto-native OpenClaw."
+                android:textSize="13sp"
+                android:alpha="0.7"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="owlia.bot"
+                android:textSize="12sp"
+                android:textColor="#1976D2"
+                android:alpha="0.8" />
+
+        </LinearLayout>
+
+        <!-- Soon button (disabled) -->
+        <Button
+            android:id="@+id/agent_owliabot_soon"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Soon"
+            android:textSize="13sp"
+            android:minWidth="80dp"
+            android:enabled="false" />
+
+    </LinearLayout>
+
+</LinearLayout>

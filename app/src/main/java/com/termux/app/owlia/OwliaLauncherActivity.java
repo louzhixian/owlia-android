@@ -241,25 +241,25 @@ public class OwliaLauncherActivity extends Activity {
             return;
         }
 
-        // Check 2: OpenClaw installed?
-        if (!OwliaService.isOpenclawInstalled()) {
-            Logger.logInfo(LOG_TAG, "OpenClaw not installed, routing to SetupActivity");
-            mStatusText.setText("Preparing installation...");
+        // Check 2: OpenClaw configured (API key)?
+        if (!OwliaService.isOpenclawConfigured()) {
+            Logger.logInfo(LOG_TAG, "OpenClaw not configured, routing to auth setup");
+            mStatusText.setText("Setup required...");
 
             Intent intent = new Intent(this, SetupActivity.class);
-            intent.putExtra(SetupActivity.EXTRA_START_STEP, SetupActivity.STEP_INSTALL);
+            intent.putExtra(SetupActivity.EXTRA_START_STEP, SetupActivity.STEP_API_KEY);
             startActivity(intent);
             finish();
             return;
         }
 
-        // Check 3: OpenClaw configured?
-        if (!OwliaService.isOpenclawConfigured()) {
-            Logger.logInfo(LOG_TAG, "OpenClaw not configured, routing to SetupActivity");
-            mStatusText.setText("Setup required...");
+        // Check 3: OpenClaw installed?
+        if (!OwliaService.isOpenclawInstalled()) {
+            Logger.logInfo(LOG_TAG, "OpenClaw not installed, routing to agent selection");
+            mStatusText.setText("Preparing installation...");
 
             Intent intent = new Intent(this, SetupActivity.class);
-            intent.putExtra(SetupActivity.EXTRA_START_STEP, SetupActivity.STEP_API_KEY);
+            intent.putExtra(SetupActivity.EXTRA_START_STEP, SetupActivity.STEP_AGENT_SELECT);
             startActivity(intent);
             finish();
             return;

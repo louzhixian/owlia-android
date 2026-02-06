@@ -17,20 +17,23 @@ import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
 
 /**
- * Setup wizard with 3 steps:
- * Step 0 (STEP_INSTALL): Welcome + Auto-install OpenClaw
- * Step 1 (STEP_API_KEY): AI Provider + Auth (TODO)
- * Step 2 (STEP_CHANNEL): Connect channel (TODO)
+ * Setup wizard with 4 steps:
+ * Step 0 (STEP_API_KEY): AI Provider + Auth
+ * Step 1 (STEP_AGENT_SELECT): Choose which agent to install
+ * Step 2 (STEP_INSTALL): Install selected agent
+ * Step 3 (STEP_CHANNEL): Connect channel
  */
+
 public class SetupActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "SetupActivity";
 
     // Step constants
-    public static final int STEP_INSTALL = 0;
-    public static final int STEP_API_KEY = 1;
-    public static final int STEP_CHANNEL = 2;
-    private static final int STEP_COUNT = 3;
+    public static final int STEP_API_KEY = 0;
+    public static final int STEP_AGENT_SELECT = 1;
+    public static final int STEP_INSTALL = 2;
+    public static final int STEP_CHANNEL = 3;
+    private static final int STEP_COUNT = 4;
 
     // Intent extra for starting at specific step
     public static final String EXTRA_START_STEP = "start_step";
@@ -63,7 +66,7 @@ public class SetupActivity extends AppCompatActivity {
         mViewPager.setUserInputEnabled(false); // Disable swipe, only programmatic navigation
 
         // Start at specified step
-        int startStep = getIntent().getIntExtra(EXTRA_START_STEP, STEP_INSTALL);
+        int startStep = getIntent().getIntExtra(EXTRA_START_STEP, STEP_API_KEY);
         mViewPager.setCurrentItem(startStep, false);
 
         // Set up navigation buttons (hidden by default, fragments can show if needed)
@@ -118,8 +121,10 @@ public class SetupActivity extends AppCompatActivity {
         if (current < STEP_COUNT - 1) {
             mViewPager.setCurrentItem(current + 1, true);
         } else {
-            // Last step complete, finish setup
+            // Last step complete → go to dashboard
             Logger.logInfo(LOG_TAG, "Setup complete");
+            Intent intent = new Intent(this, DashboardActivity.class);
+            startActivity(intent);
             finish();
         }
     }
@@ -137,10 +142,12 @@ public class SetupActivity extends AppCompatActivity {
         @Override
         public Fragment createFragment(int position) {
             switch (position) {
-                case STEP_INSTALL:
-                    return new InstallFragment();
                 case STEP_API_KEY:
                     return new AuthFragment();
+                case STEP_AGENT_SELECT:
+                    return new AgentSelectionFragment();
+                case STEP_INSTALL:
+                    return new InstallFragment();
                 case STEP_CHANNEL:
                     return new ChannelFragment();
                 default:
