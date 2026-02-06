@@ -176,18 +176,61 @@ public class ChannelFragment extends Fragment {
     }
 
     private void connectWithSetupCode() {
-        String setupCode = mSetupCodeInput.getText().toString().trim();
+        String setupCode = mSetupCodeInput.getText().toString().trim().toUpperCase();
 
         if (TextUtils.isEmpty(setupCode)) {
             Toast.makeText(requireContext(), "Please enter the setup code", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (!setupCode.startsWith("OWLIA-")) {
-            Toast.makeText(requireContext(), "Invalid setup code format", Toast.LENGTH_SHORT).show();
+        // Support both old (OWLIA-) and new (BD-) formats
+        if (setupCode.startsWith("OWLIA-")) {
+            // Legacy local decode
+            connectWithLegacyCode(setupCode);
             return;
         }
 
+        if (!setupCode.startsWith("BD-")) {
+            Toast.makeText(requireContext(), "Invalid setup code format (expected BD-XXXX-YYYY)", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Disable button during processing
+        mSetupBotConnectButton.setEnabled(false);
+        mSetupBotConnectButton.setText("Verifying...");
+
+        // Verify code with Setup Bot API
+        String platform = mPlatformTelegram.isChecked() ? "telegram" : "discord";
+        ChannelSetupHelper.verifySetupCode(setupCode, platform, new ChannelSetupHelper.SetupCodeCallback() {
+            @Override
+            public void onSuccess(ChannelSetupHelper.SetupCodeData data) {
+                requireActivity().runOnUiThread(() -> {
+                    mSetupBotConnectButton.setText("Configuring...");
+                    
+                    // Write channel config
+                    boolean success = ChannelSetupHelper.writeChannelConfig(data.platform, data.botToken, data.ownerId);
+                    if (!success) {
+                        Toast.makeText(requireContext(), "Failed to write configuration", Toast.LENGTH_LONG).show();
+                        resetSetupBotButton();
+                        return;
+                    }
+
+                    // Start gateway
+                    startGateway();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show();
+                    resetSetupBotButton();
+                });
+            }
+        });
+    }
+
+    private void connectWithLegacyCode(String setupCode) {
         // Disable button during processing
         mSetupBotConnectButton.setEnabled(false);
         mSetupBotConnectButton.setText("Connecting...");
@@ -196,8 +239,7 @@ public class ChannelFragment extends Fragment {
         ChannelSetupHelper.SetupCodeData data = ChannelSetupHelper.decodeSetupCode(setupCode);
         if (data == null) {
             Toast.makeText(requireContext(), "Failed to decode setup code", Toast.LENGTH_LONG).show();
-            mSetupBotConnectButton.setEnabled(true);
-            mSetupBotConnectButton.setText("Connect & Start");
+            resetSetupBotButton();
             return;
         }
 
@@ -205,13 +247,17 @@ public class ChannelFragment extends Fragment {
         boolean success = ChannelSetupHelper.writeChannelConfig(data.platform, data.botToken, data.ownerId);
         if (!success) {
             Toast.makeText(requireContext(), "Failed to write configuration", Toast.LENGTH_LONG).show();
-            mSetupBotConnectButton.setEnabled(true);
-            mSetupBotConnectButton.setText("Connect & Start");
+            resetSetupBotButton();
             return;
         }
 
         // Start gateway
         startGateway();
+    }
+
+    private void resetSetupBotButton() {
+        mSetupBotConnectButton.setEnabled(true);
+        mSetupBotConnectButton.setText("Connect & Start");
     }
 
     private void connectManually() {

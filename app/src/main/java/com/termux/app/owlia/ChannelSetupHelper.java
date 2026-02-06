@@ -8,14 +8,39 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * Helper for channel setup:
- * - Decode setup codes from @OwliaSetupBot
+ * - Verify setup codes via @BotDropSetupBot API
+ * - Decode legacy setup codes from @OwliaSetupBot
  * - Write channel configuration to openclaw.json
  */
 public class ChannelSetupHelper {
 
     private static final String LOG_TAG = "ChannelSetupHelper";
+    
+    // Setup Bot API URL - can be overridden via system property
+    private static final String SETUP_BOT_API_URL = System.getProperty(
+        "botdrop.setup.api.url",
+        "https://setup.botdrop.app"  // TODO: Update with actual URL when deployed
+    );
+    
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    /**
+     * Callback interface for async setup code verification
+     */
+    public interface SetupCodeCallback {
+        void onSuccess(SetupCodeData data);
+        void onError(String error);
+    }
 
     /**
      * Data extracted from setup code
@@ -30,6 +55,77 @@ public class ChannelSetupHelper {
             this.botToken = botToken;
             this.ownerId = ownerId;
         }
+    }
+
+    /**
+     * Verify setup code via BotDrop Setup Bot API
+     * 
+     * @param code Setup code (BD-XXXX-YYYY)
+     * @param platform "telegram" or "discord"
+     * @param callback Callback for result
+     */
+    public static void verifySetupCode(String code, String platform, SetupCodeCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(SETUP_BOT_API_URL + "/api/verify-code");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                // Send request body
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("code", code);
+                requestBody.put("platform", platform);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(requestBody.toString().getBytes("UTF-8"));
+                }
+
+                int responseCode = conn.getResponseCode();
+                
+                // Read response
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(
+                        responseCode >= 400 ? conn.getErrorStream() : conn.getInputStream()
+                    )
+                )) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                }
+
+                JSONObject json = new JSONObject(response.toString());
+
+                if (responseCode == 200 && json.optBoolean("ok", false)) {
+                    // Success - extract data
+                    JSONObject telegramData = json.optJSONObject("telegram");
+                    if (telegramData != null) {
+                        String chatId = String.valueOf(telegramData.optLong("chatId", 0));
+                        String botToken = telegramData.optString("token", "");
+                        
+                        // Note: The setup bot returns chatId, but we need the bot token
+                        // which the user should have configured in the setup bot flow
+                        // For now, return chatId as ownerId
+                        SetupCodeData data = new SetupCodeData(platform, botToken, chatId);
+                        callback.onSuccess(data);
+                    } else {
+                        callback.onError("Invalid response from setup server");
+                    }
+                } else {
+                    String error = json.optString("error", "Unknown error");
+                    callback.onError(error);
+                }
+
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Failed to verify setup code: " + e.getMessage());
+                callback.onError("Connection failed: " + e.getMessage());
+            }
+        });
     }
 
     /**
