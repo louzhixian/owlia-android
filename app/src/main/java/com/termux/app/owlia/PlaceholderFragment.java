@@ -14,7 +14,8 @@ import androidx.fragment.app.Fragment;
 import com.termux.R;
 
 /**
- * Placeholder fragment for unimplemented setup steps
+ * Placeholder fragment for unimplemented setup steps.
+ * Use newInstance() factory method instead of constructor.
  */
 public class PlaceholderFragment extends Fragment {
 
@@ -22,14 +23,20 @@ public class PlaceholderFragment extends Fragment {
     private static final String ARG_MESSAGE = "message";
 
     public PlaceholderFragment() {
-        // Required empty constructor
+        // Required empty constructor for fragment recreation
     }
 
-    public PlaceholderFragment(String title, String message) {
+    /**
+     * Factory method to create a new instance with arguments.
+     * Preferred over constructor to survive configuration changes.
+     */
+    public static PlaceholderFragment newInstance(String title, String message) {
+        PlaceholderFragment fragment = new PlaceholderFragment();
         Bundle args = new Bundle();
         args.putString(ARG_TITLE, title);
         args.putString(ARG_MESSAGE, message);
-        setArguments(args);
+        fragment.setArguments(args);
+        return fragment;
     }
 
     @Nullable
@@ -50,7 +57,7 @@ public class PlaceholderFragment extends Fragment {
 
         continueButton.setOnClickListener(v -> {
             SetupActivity activity = (SetupActivity) getActivity();
-            if (activity != null) {
+            if (activity != null && !activity.isFinishing()) {
                 activity.goToNextStep();
             }
         });

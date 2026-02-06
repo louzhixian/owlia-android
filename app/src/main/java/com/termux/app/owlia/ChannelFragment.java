@@ -122,9 +122,15 @@ public class ChannelFragment extends Fragment {
             return;
         }
 
-        // Basic token format validation
-        if (!token.contains(":")) {
-            showError("Invalid bot token format (should contain ':')");
+        // Basic token format validation (Telegram bot tokens are like "123456789:ABC-DEF...")
+        if (!token.matches("^\\d+:[A-Za-z0-9_-]+$")) {
+            showError("Invalid bot token format");
+            return;
+        }
+
+        // Basic User ID validation (should be numeric)
+        if (!userId.matches("^\\d+$")) {
+            showError("Invalid User ID format (should be numeric)");
             return;
         }
 
@@ -154,14 +160,25 @@ public class ChannelFragment extends Fragment {
         Logger.logInfo(LOG_TAG, "Starting gateway...");
 
         mService.startGateway(result -> {
+            // Check if fragment is still attached
+            if (!isAdded() || getActivity() == null || getActivity().isFinishing()) {
+                return;
+            }
+            
             requireActivity().runOnUiThread(() -> {
+                // Double-check in UI thread
+                if (!isAdded() || getActivity() == null || getActivity().isFinishing()) {
+                    return;
+                }
+                
                 if (result.success) {
                     Logger.logInfo(LOG_TAG, "Gateway started successfully");
                     Toast.makeText(requireContext(), "Connected! Gateway is starting...", Toast.LENGTH_LONG).show();
 
-                    // Setup complete, finish SetupActivity
-                    if (getActivity() instanceof SetupActivity) {
-                        ((SetupActivity) getActivity()).goToNextStep();
+                    // Setup complete, advance to next step
+                    SetupActivity activity = (SetupActivity) getActivity();
+                    if (activity != null && !activity.isFinishing()) {
+                        activity.goToNextStep();
                     }
                 } else {
                     Logger.logError(LOG_TAG, "Failed to start gateway: " + result.stderr);
