@@ -239,7 +239,7 @@ public class GatewayMonitorService extends Service {
         Logger.logInfo(LOG_TAG, "Restart attempt " + mRestartAttempts + "/" + MAX_RESTART_ATTEMPTS);
 
         try {
-            mOwliaService.executeCommand("openclaw gateway start", result -> {
+            mOwliaService.startGateway(result -> {
                 try {
                     if (result.success) {
                         Logger.logInfo(LOG_TAG, "Gateway started successfully");

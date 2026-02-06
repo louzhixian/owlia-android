@@ -301,7 +301,8 @@ public class OwliaService extends Service {
     }
 
     /**
-     * Build a command with proper Termux environment
+     * Build a command with proper Termux environment.
+     * Does NOT use termux-chroot — for non-openclaw commands only.
      */
     private String withTermuxEnv(String command) {
         return "export HOME=" + TermuxConstants.TERMUX_HOME_DIR_PATH + " && " +
@@ -312,32 +313,35 @@ public class OwliaService extends Service {
     }
 
     /**
-     * Start the OpenClaw gateway
+     * Build an openclaw command wrapped in termux-chroot.
+     * Required: Android kernel blocks os.networkInterfaces() which OpenClaw needs.
+     * termux-chroot (proot) provides a virtual chroot that bypasses this limitation.
      */
+    private String withTermuxChroot(String openclawArgs) {
+        return "export HOME=" + TermuxConstants.TERMUX_HOME_DIR_PATH + " && " +
+               "export PREFIX=" + TermuxConstants.TERMUX_PREFIX_DIR_PATH + " && " +
+               "export PATH=$PREFIX/bin:$PATH && " +
+               "export TMPDIR=$PREFIX/tmp && " +
+               "$PREFIX/bin/termux-chroot openclaw " + openclawArgs;
+    }
+
     public void startGateway(CommandCallback callback) {
-        executeCommand(withTermuxEnv("openclaw gateway start"), callback);
+        executeCommand(withTermuxChroot("gateway start"), callback);
     }
 
-    /**
-     * Stop the OpenClaw gateway
-     */
     public void stopGateway(CommandCallback callback) {
-        executeCommand(withTermuxEnv("openclaw gateway stop"), callback);
+        executeCommand(withTermuxChroot("gateway stop"), callback);
     }
 
-    /**
-     * Restart the OpenClaw gateway
-     */
     public void restartGateway(CommandCallback callback) {
-        executeCommand(withTermuxEnv("openclaw gateway restart"), callback);
+        executeCommand(withTermuxChroot("gateway restart"), callback);
     }
 
-    /**
-     * Get the OpenClaw gateway status
-     */
     public void getGatewayStatus(CommandCallback callback) {
-        executeCommand(withTermuxEnv("openclaw gateway status"), callback);
+        executeCommand(withTermuxChroot("gateway status"), callback);
     }
+
+    // isGatewayRunning and getGatewayUptime use pgrep (no chroot needed)
 
     /**
      * Check if the gateway is currently running
