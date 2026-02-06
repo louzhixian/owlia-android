@@ -485,6 +485,8 @@ public final class TermuxInstaller {
                 "    fi\n\n" +
                 "    # Install OpenClaw\n" +
                 "    echo \"Installing OpenClaw...\"\n" +
+                "    # Clean up old installation to avoid ENOTEMPTY errors\n" +
+                "    rm -rf $PREFIX/lib/node_modules/openclaw 2>/dev/null\n" +
                 "    if npm install -g openclaw@latest --ignore-scripts --force; then\n" +
                 "        touch \"$OWLIA_FIRST_RUN_MARKER\"\n" +
                 "        echo \"\"\n" +
