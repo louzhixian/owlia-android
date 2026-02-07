@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!DOCTYPE resources [
-    <!ENTITY TERMUX_PACKAGE_NAME "com.termux">
+    <!ENTITY TERMUX_PACKAGE_NAME "app.botdrop">
     <!ENTITY TERMUX_APP_NAME "BotDrop">
     <!ENTITY TERMUX_API_APP_NAME "BotDrop:API">
     <!ENTITY TERMUX_BOOT_APP_NAME "BotDrop:Boot">

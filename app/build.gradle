@@ -42,19 +42,18 @@ android {
     }
 
     defaultConfig {
-        // applicationId defaults to namespace "com.termux" for bootstrap compatibility
-        // TODO: Change to "app.botdrop" after bootstrap rebuild with new prefix
+        applicationId "app.botdrop"
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 2
+        versionName "0.2.0"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
 
         buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\"" // Used by TermuxApplication class
 
-        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux" // TODO: Change to "app.botdrop" after bootstrap rebuild
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = "app.botdrop"
         manifestPlaceholders.TERMUX_APP_NAME = "BotDrop"
         manifestPlaceholders.TERMUX_API_APP_NAME = "BotDrop:API"
         manifestPlaceholders.TERMUX_BOOT_APP_NAME = "BotDrop:Boot"

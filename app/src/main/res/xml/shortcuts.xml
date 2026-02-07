@@ -18,7 +18,7 @@
         tools:targetApi="n_mr1">
         <intent
             android:action="android.intent.action.RUN"
-            android:targetPackage="com.termux"
+            android:targetPackage="app.botdrop"
             android:targetClass="com.termux.app.TermuxActivity"
             android:name="android.shortcut.conversation"/>
     </shortcut>
@@ -31,7 +31,7 @@
         tools:targetApi="n_mr1">
         <intent
             android:action="android.intent.action.RUN"
-            android:targetPackage="com.termux"
+            android:targetPackage="app.botdrop"
             android:targetClass="com.termux.app.TermuxActivity"
             android:name="android.shortcut.conversation">
             <extra android:name="com.termux.app.failsafe_session" android:value="true"/>
@@ -46,7 +46,7 @@
         tools:targetApi="n_mr1">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.termux"
+            android:targetPackage="app.botdrop"
             android:targetClass="com.termux.app.activities.SettingsActivity"
             android:name="android.shortcut.conversation"/>
     </shortcut>
