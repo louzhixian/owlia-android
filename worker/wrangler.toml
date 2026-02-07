@@ -1,0 +1,22 @@
+name = "botdrop-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+route = "api.botdrop.app/*"
+
+[vars]
+GITHUB_REPO = "zhixianio/botdrop-android"
+CACHE_TTL_SECONDS = "900"
+
+# Uncomment after creating KV namespace:
+#   npx wrangler kv namespace create CACHE
+#   npx wrangler kv namespace create CACHE --preview
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "04973d2f1e1e48b7822462f1f3e4354f"
+preview_id = "3a31fbd42b1140feb57f4d64c9e7feed"
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "botdrop_version_checks"

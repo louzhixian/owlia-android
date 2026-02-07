@@ -11,6 +11,57 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Update Banner (hidden by default) -->
+        <LinearLayout
+            android:id="@+id/update_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/botdrop_card_bg"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/update_banner_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Update available"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_accent"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_update_download"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Download"
+                    android:textAllCaps="false"
+                    android:background="@drawable/botdrop_button_bg"
+                    android:textColor="#1A1A1A"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btn_update_dismiss"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Dismiss"
+                    android:textAllCaps="false"
+                    android:background="@drawable/botdrop_button_outline_bg"
+                    android:textColor="@color/botdrop_accent" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- Header -->
         <LinearLayout
             android:layout_width="match_parent"
