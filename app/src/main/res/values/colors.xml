@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- BotDrop Brand Colors -->
+    <color name="botdrop_background">#1A1A1A</color>
+    <color name="botdrop_surface">#2A2A2A</color>
+    <color name="botdrop_on_background">#F5F0E6</color>
+    <color name="botdrop_secondary_text">#888888</color>
+    <color name="botdrop_accent">#E8A853</color>
+    <color name="botdrop_accent_dark">#C08A3A</color>
+
     <!-- Status colors -->
     <color name="status_connected">#4CAF50</color>
     <color name="status_disconnected">#9E9E9E</color>
