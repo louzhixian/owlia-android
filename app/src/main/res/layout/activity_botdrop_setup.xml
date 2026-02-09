@@ -36,17 +36,35 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:gravity="end"
-        android:visibility="gone">
+        android:gravity="center_vertical"
+        android:background="@color/botdrop_surface">
 
         <Button
             android:id="@+id/setup_button_back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Back"
-            android:layout_marginEnd="8dp"
             android:background="@drawable/botdrop_button_outline_bg"
-            android:textColor="@color/botdrop_accent" />
+            android:textColor="@color/botdrop_accent"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:visibility="gone" />
+
+        <!-- NEW: Manual update check button -->
+        <ImageButton
+            android:id="@+id/setup_check_updates"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_update"
+            android:contentDescription="Check for updates"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:layout_marginStart="8dp" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <Button
             android:id="@+id/setup_button_next"
@@ -54,9 +72,10 @@
             android:layout_height="wrap_content"
             android:text="Next"
             android:background="@drawable/botdrop_button_bg"
-            android:textColor="#1A1A1A"
-            android:textStyle="bold" />
-
+            android:textColor="@color/botdrop_background"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:visibility="gone" />
     </LinearLayout>
 
 </LinearLayout>
