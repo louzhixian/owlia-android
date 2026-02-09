@@ -17,6 +17,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -61,6 +62,7 @@ public class AuthFragment extends Fragment {
     
     private ProviderInfo mSelectedProvider;
     private ProviderInfo.AuthMethod mSelectedAuthMethod;
+    private String mSelectedModel = null; // Format: "provider/model"
     private boolean mMoreExpanded = false;
     private boolean mPasswordVisible = false;
     
@@ -244,7 +246,7 @@ public class AuthFragment extends Fragment {
 
     private void onProviderSelected(ProviderInfo provider, RadioButton selectedRadio) {
         Logger.logInfo(LOG_TAG, "Provider selected: " + provider.getName());
-        
+
         mSelectedProvider = provider;
 
         // Update all radio buttons
@@ -253,8 +255,29 @@ public class AuthFragment extends Fragment {
             radio.setChecked(radio == selectedRadio);
         }
 
-        // Show auth input for this provider
-        showAuthInput(provider);
+        // Show model selector dialog
+        showModelSelector();
+    }
+
+    private void showModelSelector() {
+        if (!mBound || mService == null) {
+            Toast.makeText(requireContext(), "Service not available. Please try again.", Toast.LENGTH_SHORT).show();
+            Logger.logError(LOG_TAG, "Cannot show model selector: service not bound");
+            return;
+        }
+
+        ModelSelectorDialog dialog = new ModelSelectorDialog(requireContext(), mService);
+        dialog.show((provider, model) -> {
+            if (provider != null && model != null) {
+                mSelectedModel = provider + "/" + model;
+                Logger.logInfo(LOG_TAG, "Model selected: " + mSelectedModel);
+
+                // Now show API key input
+                showAuthInput(mSelectedProvider);
+            } else {
+                Toast.makeText(requireContext(), "Model selection cancelled", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void toggleMoreProviders() {
@@ -418,18 +441,36 @@ public class AuthFragment extends Fragment {
     }
 
     private void saveCredentials(String credential) {
-        String model = getDefaultModel(mSelectedProvider.getId());
         String providerId = mSelectedProvider.getId();
 
-        Logger.logInfo(LOG_TAG, "Saving credentials for provider: " + providerId);
+        // Use selected model or fall back to default
+        String modelToUse;
+        if (mSelectedModel != null && !mSelectedModel.isEmpty()) {
+            // Extract just the model part (after the /)
+            String[] parts = mSelectedModel.split("/", 2);
+            modelToUse = parts.length > 1 ? parts[1] : getDefaultModel(providerId);
+        } else {
+            modelToUse = getDefaultModel(providerId);
+        }
+
+        Logger.logInfo(LOG_TAG, "Saving credentials for provider: " + providerId + ", model: " + modelToUse);
 
         // Write API key and provider config directly (no CLI dependency)
         boolean keyWritten = BotDropConfig.setApiKey(providerId, credential);
-        boolean providerWritten = BotDropConfig.setProvider(providerId, model);
+        boolean providerWritten = BotDropConfig.setProvider(providerId, modelToUse);
 
         if (keyWritten && providerWritten) {
             Logger.logInfo(LOG_TAG, "Auth configured successfully");
-            showStatus("✓ Connected!\nModel: " + providerId + "/" + model, true);
+            showStatus("✓ Connected!\nModel: " + providerId + "/" + modelToUse, true);
+
+            // Save to config template cache
+            ConfigTemplate template = new ConfigTemplate();
+            template.provider = providerId;
+            template.model = mSelectedModel != null ? mSelectedModel : (providerId + "/" + modelToUse);
+            template.apiKey = credential;
+            // tgBotToken and tgUserId will be added later in ChannelFragment
+            ConfigTemplateCache.saveTemplate(requireContext(), template);
+            Logger.logInfo(LOG_TAG, "Config template saved to cache");
 
             // Auto-advance after short delay
             // Track runnable so we can remove it in onDestroyView() if needed
