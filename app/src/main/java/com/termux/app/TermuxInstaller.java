@@ -520,8 +520,8 @@ public final class TermuxInstaller {
                 "# BotDrop environment setup\n" +
                 "export TMPDIR=$PREFIX/tmp\n" +
                 "mkdir -p $TMPDIR 2>/dev/null\n\n" +
-                "# Run openclaw through termux-chroot (required for Android kernel compatibility)\n" +
-                "alias openclaw='termux-chroot openclaw'\n\n" +
+                "# `openclaw` is installed as a wrapper that already runs under `termux-chroot`.\n" +
+                "# Avoid nesting proot/termux-chroot which can make commands extremely slow.\n\n" +
                 "# Auto-start sshd if not running\n" +
                 "if ! pgrep -x sshd >/dev/null 2>&1; then\n" +
                 "    sshd 2>/dev/null\n" +

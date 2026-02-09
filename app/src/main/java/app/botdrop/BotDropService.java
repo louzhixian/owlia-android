@@ -376,7 +376,9 @@ public class BotDropService extends Service {
                "export TMPDIR=$PREFIX/tmp && " +
                "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem && " +
                "export NODE_OPTIONS=--dns-result-order=ipv4first && " +
-               "$PREFIX/bin/termux-chroot openclaw " + openclawArgs;
+               // `openclaw` is installed as a wrapper that already runs under `termux-chroot`.
+               // Avoid nesting proot/termux-chroot, which can stall gateway startup for minutes.
+               "openclaw " + openclawArgs;
     }
 
     private static final String GATEWAY_PID_FILE = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/gateway.pid";
@@ -421,7 +423,8 @@ public class BotDropService extends Service {
             "echo \"NODE_OPTIONS=$NODE_OPTIONS\" >&2\n" +
             "echo \"Testing cert file access:\" >&2\n" +
             "ls -lh $PREFIX/etc/tls/cert.pem >&2 || echo \"cert.pem not found!\" >&2\n" +
-            "$PREFIX/bin/termux-chroot sh -c 'echo \"=== Inside chroot ===\"; echo \"SSL_CERT_FILE=$SSL_CERT_FILE\"; echo \"NODE_OPTIONS=$NODE_OPTIONS\"; openclaw gateway run --force' >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
+            "# Start gateway (openclaw wrapper handles termux-chroot)\n" +
+            "openclaw gateway run --force >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
             "GW_PID=$!\n" +
             "echo $GW_PID > " + GATEWAY_PID_FILE + "\n" +
             "echo \"gateway pid: $GW_PID\" >&2\n" +
