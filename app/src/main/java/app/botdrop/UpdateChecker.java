@@ -137,6 +137,22 @@ public class UpdateChecker {
     }
 
     /**
+     * Force an immediate update check, ignoring the 24-hour throttle.
+     * Used for manual update button.
+     */
+    public static void forceCheck(Context ctx, UpdateCallback cb) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
+        // Clear last check timestamp to bypass throttle
+        prefs.edit().putLong(KEY_LAST_CHECK, 0).apply();
+
+        Logger.logInfo(LOG_TAG, "Forcing update check (manual trigger)");
+
+        // Execute normal check
+        check(ctx, cb);
+    }
+
+    /**
      * Get stored update info, or null if no update is available.
      * Returns [latestVersion, downloadUrl, releaseNotes] or null.
      */
