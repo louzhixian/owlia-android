@@ -75,6 +75,55 @@
 
         </LinearLayout>
 
+        <!-- Model Selection Section (shown after provider selection) -->
+        <LinearLayout
+            android:id="@+id/auth_model_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="24dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Model"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_on_background"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <Button
+                    android:id="@+id/auth_select_model_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Model"
+                    android:background="@drawable/botdrop_button_outline_bg"
+                    android:textColor="@color/botdrop_accent"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp" />
+
+                <TextView
+                    android:id="@+id/auth_selected_model_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="16dp"
+                    android:text="No model selected"
+                    android:textSize="14sp"
+                    android:textColor="@color/botdrop_secondary_text"
+                    android:fontFamily="monospace" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 
 </ScrollView>

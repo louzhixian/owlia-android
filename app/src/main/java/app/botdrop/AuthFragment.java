@@ -33,7 +33,7 @@ import java.util.List;
  * Fragment for AI provider authentication.
  * Shows provider selection, then switches to auth input within the same fragment.
  */
-public class AuthFragment extends Fragment implements SetupActivity.SetupStepFragment {
+public class AuthFragment extends Fragment implements SetupActivity.StepFragment {
 
     private static final String LOG_TAG = "AuthFragment";
 
@@ -65,7 +65,12 @@ public class AuthFragment extends Fragment implements SetupActivity.SetupStepFra
     private String mSelectedModel = null; // Format: "provider/model"
     private boolean mMoreExpanded = false;
     private boolean mPasswordVisible = false;
-    
+
+    // Model selection UI
+    private LinearLayout mModelSection;
+    private Button mSelectModelButton;
+    private TextView mSelectedModelText;
+
     // Keep track of all provider views for radio button management
     private List<View> mAllProviderViews = new ArrayList<>();
 
@@ -172,6 +177,14 @@ public class AuthFragment extends Fragment implements SetupActivity.SetupStepFra
         mMoreProvidersContainer = mProviderSelectionView.findViewById(R.id.auth_more_providers);
         mMoreToggle = mProviderSelectionView.findViewById(R.id.auth_more_toggle);
 
+        // Model selection UI
+        mModelSection = mProviderSelectionView.findViewById(R.id.auth_model_section);
+        mSelectModelButton = mProviderSelectionView.findViewById(R.id.auth_select_model_button);
+        mSelectedModelText = mProviderSelectionView.findViewById(R.id.auth_selected_model_text);
+
+        // Set up Select Model button
+        mSelectModelButton.setOnClickListener(v -> showModelSelectorFullscreen());
+
         // Load provider data
         mPopularProviders = ProviderInfo.getPopularProviders();
         mMoreProviders = ProviderInfo.getMoreProviders();
@@ -255,23 +268,31 @@ public class AuthFragment extends Fragment implements SetupActivity.SetupStepFra
             radio.setChecked(radio == selectedRadio);
         }
 
-        // Enable Next button - model selector will be shown when Next is clicked
+        // Show model selection section
+        mModelSection.setVisibility(View.VISIBLE);
+
+        // Reset model selection
+        mSelectedModel = null;
+        mSelectedModelText.setText("No model selected");
+        mSelectedModelText.setTextColor(getResources().getColor(R.color.botdrop_secondary_text, null));
+
+        // Disable Next button until model is selected
         if (getActivity() instanceof SetupActivity) {
-            ((SetupActivity) getActivity()).setNextEnabled(true);
+            ((SetupActivity) getActivity()).setNextEnabled(false);
         }
     }
 
     @Override
-    public boolean onNextClicked() {
-        // If provider is selected but haven't shown auth input yet, show model selector first
-        if (mSelectedProvider != null && mAuthInputView.getVisibility() == View.GONE) {
-            showModelSelector();
-            return true; // We handled the Next click
+    public boolean handleNext() {
+        // If on provider selection page with model selected, show auth input
+        if (mProviderSelectionView.getVisibility() == View.VISIBLE && mSelectedModel != null) {
+            showAuthInput(mSelectedProvider);
+            return true; // We handled it
         }
         return false; // Let default behavior proceed
     }
 
-    private void showModelSelector() {
+    private void showModelSelectorFullscreen() {
         if (!mBound || mService == null) {
             Toast.makeText(requireContext(), "Service not available. Please try again.", Toast.LENGTH_SHORT).show();
             Logger.logError(LOG_TAG, "Cannot show model selector: service not bound");
@@ -284,10 +305,17 @@ public class AuthFragment extends Fragment implements SetupActivity.SetupStepFra
                 mSelectedModel = provider + "/" + model;
                 Logger.logInfo(LOG_TAG, "Model selected: " + mSelectedModel);
 
-                // Now show API key input
-                showAuthInput(mSelectedProvider);
+                // Update the display text
+                mSelectedModelText.setText(mSelectedModel);
+                mSelectedModelText.setTextColor(getResources().getColor(R.color.botdrop_on_background, null));
+
+                // Enable Next button now that model is selected
+                if (getActivity() instanceof SetupActivity) {
+                    ((SetupActivity) getActivity()).setNextEnabled(true);
+                }
             } else {
-                Toast.makeText(requireContext(), "Model selection cancelled", Toast.LENGTH_SHORT).show();
+                // User cancelled - do nothing
+                Logger.logInfo(LOG_TAG, "Model selection cancelled");
             }
         });
     }

@@ -6,9 +6,11 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -61,11 +63,27 @@ public class ModelSelectorDialog extends Dialog {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.dialog_model_selector);
 
+        // Set dialog to fullscreen
+        Window window = getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
         // Initialize views
         mSearchBox = findViewById(R.id.model_search);
         mModelList = findViewById(R.id.model_list);
         mStatusText = findViewById(R.id.model_status);
         mRetryButton = findViewById(R.id.model_retry);
+        ImageButton closeButton = findViewById(R.id.model_close_button);
+
+        // Close button
+        closeButton.setOnClickListener(v -> {
+            if (mCallback != null) {
+                mCallback.onModelSelected(null, null); // User cancelled
+            }
+            dismiss();
+        });
 
         // Setup RecyclerView
         mAdapter = new ModelListAdapter(model -> {

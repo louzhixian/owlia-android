@@ -1,65 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
     android:background="@color/botdrop_background">
 
-    <!-- Title -->
-    <TextView
+    <!-- Top bar with title and close button -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Model"
-        android:textSize="20sp"
-        android:textColor="@color/botdrop_on_background"
-        android:fontFamily="sans-serif-medium"
-        android:layout_marginBottom="16dp" />
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:background="@color/botdrop_surface">
 
-    <!-- Search box -->
-    <EditText
-        android:id="@+id/model_search"
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Select Model"
+            android:textSize="20sp"
+            android:textColor="@color/botdrop_on_background"
+            android:fontFamily="sans-serif-medium" />
+
+        <ImageButton
+            android:id="@+id/model_close_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:tint="@color/botdrop_on_background" />
+
+    </LinearLayout>
+
+    <!-- Content area with padding -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:hint="Search models..."
-        android:textColor="@color/botdrop_on_background"
-        android:textColorHint="@color/botdrop_secondary_text"
-        android:background="@drawable/edit_text_background"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:imeOptions="actionSearch"
-        android:inputType="text"
-        android:layout_marginBottom="16dp" />
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <!-- Model list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/model_list"
-        android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:visibility="gone" />
+        <!-- Search box -->
+        <EditText
+            android:id="@+id/model_search"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="Search models..."
+            android:textColor="@color/botdrop_on_background"
+            android:textColorHint="@color/botdrop_secondary_text"
+            android:background="@drawable/edit_text_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:layout_marginBottom="16dp" />
 
-    <!-- Status message -->
-    <TextView
-        android:id="@+id/model_status"
-        android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:text="Loading models..."
-        android:textColor="@color/botdrop_secondary_text"
-        android:gravity="center"
-        android:visibility="visible" />
+        <!-- Model list (fills remaining space) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/model_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone" />
 
-    <!-- Retry button -->
-    <Button
-        android:id="@+id/model_retry"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Retry"
-        android:layout_gravity="center"
-        android:visibility="gone"
-        android:background="@drawable/botdrop_button_bg"
-        android:textColor="@color/botdrop_background"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:layout_marginTop="8dp" />
+        <!-- Status message (fills remaining space) -->
+        <TextView
+            android:id="@+id/model_status"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:text="Loading models..."
+            android:textColor="@color/botdrop_secondary_text"
+            android:gravity="center"
+            android:visibility="visible" />
+
+        <!-- Retry button -->
+        <Button
+            android:id="@+id/model_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Retry"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:background="@drawable/botdrop_button_bg"
+            android:textColor="@color/botdrop_background"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
