@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -82,6 +84,22 @@ public class SetupActivity extends AppCompatActivity {
             if (current < STEP_COUNT - 1) {
                 mViewPager.setCurrentItem(current + 1);
             }
+        });
+
+        // Setup manual update check button
+        ImageButton checkUpdatesBtn = findViewById(R.id.setup_check_updates);
+        checkUpdatesBtn.setOnClickListener(v -> {
+            v.setEnabled(false);
+            UpdateChecker.forceCheck(this, (version, url, notes) -> {
+                v.setEnabled(true);
+                if (version != null && !version.isEmpty()) {
+                    // Show update available message
+                    Toast.makeText(this, "Update available: v" + version, Toast.LENGTH_SHORT).show();
+                    // Could show a dialog or banner here
+                } else {
+                    Toast.makeText(this, "No updates available", Toast.LENGTH_SHORT).show();
+                }
+            });
         });
 
         Logger.logDebug(LOG_TAG, "SetupActivity created, starting at step " + startStep);
