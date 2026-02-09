@@ -31,6 +31,18 @@ public class SetupActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "SetupActivity";
 
+    /**
+     * Interface for setup step fragments to handle Next button clicks.
+     * Fragments can intercept the Next button to show dialogs or perform validation.
+     */
+    public interface SetupStepFragment {
+        /**
+         * Called when Next button is clicked.
+         * @return true if the fragment handled the click, false to proceed with default behavior
+         */
+        boolean onNextClicked();
+    }
+
     // Step constants
     public static final int STEP_API_KEY = 0;
     public static final int STEP_AGENT_SELECT = 1;
@@ -81,6 +93,19 @@ public class SetupActivity extends AppCompatActivity {
         });
 
         mNextButton.setOnClickListener(v -> {
+            // Get current fragment and check if it wants to handle Next button
+            Fragment currentFragment = getSupportFragmentManager()
+                .findFragmentByTag("f" + mViewPager.getCurrentItem());
+
+            if (currentFragment instanceof SetupStepFragment) {
+                // Let fragment handle Next button (e.g., show model selector dialog)
+                boolean handled = ((SetupStepFragment) currentFragment).onNextClicked();
+                if (handled) {
+                    return; // Fragment handled it, don't advance
+                }
+            }
+
+            // Default behavior: advance to next step
             int current = mViewPager.getCurrentItem();
             if (current < STEP_COUNT - 1) {
                 mViewPager.setCurrentItem(current + 1);

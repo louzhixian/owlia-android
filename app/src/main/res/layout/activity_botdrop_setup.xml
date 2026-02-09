@@ -5,13 +5,23 @@
     android:orientation="vertical"
     android:background="@color/botdrop_background">
 
-    <!-- Top bar with Open Terminal button -->
+    <!-- Top bar with Open Terminal and Update Check buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
         android:gravity="end">
+
+        <ImageButton
+            android:id="@+id/setup_check_updates"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_update"
+            android:contentDescription="Check for updates"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:layout_marginEnd="8dp" />
 
         <Button
             android:id="@+id/setup_open_terminal"
@@ -49,17 +59,6 @@
             android:paddingStart="24dp"
             android:paddingEnd="24dp"
             android:visibility="gone" />
-
-        <!-- NEW: Manual update check button -->
-        <ImageButton
-            android:id="@+id/setup_check_updates"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_update"
-            android:contentDescription="Check for updates"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="12dp"
-            android:layout_marginStart="8dp" />
 
         <Space
             android:layout_width="0dp"

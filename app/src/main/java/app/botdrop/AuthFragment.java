@@ -33,7 +33,7 @@ import java.util.List;
  * Fragment for AI provider authentication.
  * Shows provider selection, then switches to auth input within the same fragment.
  */
-public class AuthFragment extends Fragment {
+public class AuthFragment extends Fragment implements SetupActivity.SetupStepFragment {
 
     private static final String LOG_TAG = "AuthFragment";
 
@@ -255,8 +255,20 @@ public class AuthFragment extends Fragment {
             radio.setChecked(radio == selectedRadio);
         }
 
-        // Show model selector dialog
-        showModelSelector();
+        // Enable Next button - model selector will be shown when Next is clicked
+        if (getActivity() instanceof SetupActivity) {
+            ((SetupActivity) getActivity()).setNextEnabled(true);
+        }
+    }
+
+    @Override
+    public boolean onNextClicked() {
+        // If provider is selected but haven't shown auth input yet, show model selector first
+        if (mSelectedProvider != null && mAuthInputView.getVisibility() == View.GONE) {
+            showModelSelector();
+            return true; // We handled the Next click
+        }
+        return false; // Let default behavior proceed
     }
 
     private void showModelSelector() {
