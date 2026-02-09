@@ -129,6 +129,8 @@ public class BotDropService extends Service {
             pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
             pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":" + System.getenv("PATH"));
             pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
+            // Set SSL_CERT_FILE for Node.js fetch to find CA certificates
+            pb.environment().put("SSL_CERT_FILE", TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/etc/tls/cert.pem");
 
             pb.redirectErrorStream(true);
 
@@ -203,6 +205,7 @@ public class BotDropService extends Service {
                 pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
                 pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":" + System.getenv("PATH"));
                 pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
+                pb.environment().put("SSL_CERT_FILE", TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/etc/tls/cert.pem");
                 pb.redirectErrorStream(true);
 
                 Logger.logInfo(LOG_TAG, "Starting install via " + INSTALL_SCRIPT);
@@ -347,6 +350,7 @@ public class BotDropService extends Service {
                "export PREFIX=" + TermuxConstants.TERMUX_PREFIX_DIR_PATH + " && " +
                "export PATH=$PREFIX/bin:$PATH && " +
                "export TMPDIR=$PREFIX/tmp && " +
+               "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem && " +
                command;
     }
 
@@ -360,6 +364,7 @@ public class BotDropService extends Service {
                "export PREFIX=" + TermuxConstants.TERMUX_PREFIX_DIR_PATH + " && " +
                "export PATH=$PREFIX/bin:$PATH && " +
                "export TMPDIR=$PREFIX/tmp && " +
+               "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem && " +
                "$PREFIX/bin/termux-chroot openclaw " + openclawArgs;
     }
 
@@ -394,7 +399,12 @@ public class BotDropService extends Service {
             "export PREFIX=" + prefix + "\n" +
             "export PATH=$PREFIX/bin:$PATH\n" +
             "export TMPDIR=$PREFIX/tmp\n" +
-            "$PREFIX/bin/termux-chroot openclaw gateway run >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
+            "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem\n" +
+            "echo \"=== Environment before chroot ===\" >&2\n" +
+            "echo \"SSL_CERT_FILE=$SSL_CERT_FILE\" >&2\n" +
+            "echo \"Testing cert file access:\" >&2\n" +
+            "ls -lh $PREFIX/etc/tls/cert.pem >&2 || echo \"cert.pem not found!\" >&2\n" +
+            "$PREFIX/bin/termux-chroot sh -c 'echo \"=== Inside chroot ===\"; echo \"SSL_CERT_FILE=$SSL_CERT_FILE\"; openclaw gateway run' >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
             "GW_PID=$!\n" +
             "echo $GW_PID > " + GATEWAY_PID_FILE + "\n" +
             "echo \"gateway pid: $GW_PID\" >&2\n" +
