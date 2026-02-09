@@ -41,11 +41,11 @@ public class SetupActivity extends AppCompatActivity {
         boolean handleNext();
     }
 
-    // Step constants
-    public static final int STEP_API_KEY = 0;
-    public static final int STEP_AGENT_SELECT = 1;
-    public static final int STEP_INSTALL = 2;
-    public static final int STEP_CHANNEL = 3;
+    // Step constants (reordered: Install first, then Choose AI)
+    public static final int STEP_INSTALL = 0;       // Step 1: Install openclaw
+    public static final int STEP_API_KEY = 1;       // Step 2: Choose AI + API Key
+    public static final int STEP_AGENT_SELECT = 2;  // Step 3: Agent Selection
+    public static final int STEP_CHANNEL = 3;       // Step 4: Telegram config
     private static final int STEP_COUNT = 4;
 
     // Intent extra for starting at specific step
@@ -246,12 +246,12 @@ public class SetupActivity extends AppCompatActivity {
         @Override
         public Fragment createFragment(int position) {
             switch (position) {
+                case STEP_INSTALL:
+                    return new InstallFragment();
                 case STEP_API_KEY:
                     return new AuthFragment();
                 case STEP_AGENT_SELECT:
                     return new AgentSelectionFragment();
-                case STEP_INSTALL:
-                    return new InstallFragment();
                 case STEP_CHANNEL:
                     return new ChannelFragment();
                 default:

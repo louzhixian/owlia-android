@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="← Step 2/3"
+            android:text="← Step 2/4"
             android:textSize="14sp"
             android:textColor="@color/botdrop_secondary_text"
             android:layout_marginBottom="16dp" />
@@ -60,6 +60,7 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:hint="No model selected"
+                android:textSize="12sp"
                 android:textColor="@color/botdrop_on_background"
                 android:textColorHint="@color/botdrop_secondary_text"
                 android:background="@drawable/edit_text_background"

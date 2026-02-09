@@ -165,7 +165,8 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
 
         // Set up Select button
         selectButton.setOnClickListener(v -> {
-            ModelSelectorDialog dialog = new ModelSelectorDialog(requireContext()); // No service needed
+            // Try CLI first (openclaw should be installed by now), fallback to static list
+            ModelSelectorDialog dialog = new ModelSelectorDialog(requireContext(), mService, true);
             dialog.show((provider, model) -> {
                 if (provider != null && model != null) {
                     String fullModel = provider + "/" + model;
@@ -223,11 +224,37 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
     @Override
     public boolean handleNext() {
         // If on model selection page with model selected, show auth input
-        if (mProviderSelectionView.getVisibility() == View.VISIBLE && mSelectedModel != null && mSelectedProvider != null) {
+        if (mProviderSelectionView.getVisibility() == View.VISIBLE && mSelectedModel != null) {
+            // Extract provider from selected model (e.g., "openai/gpt-4.5" -> "openai")
+            String providerId = mSelectedModel.split("/")[0];
+
+            // Find or create provider info
+            if (mSelectedProvider == null) {
+                mSelectedProvider = findProviderById(providerId);
+            }
+
             showAuthInput(mSelectedProvider);
             return true; // We handled it
         }
         return false; // Let default behavior proceed
+    }
+
+    private ProviderInfo findProviderById(String providerId) {
+        // Try to find in existing lists
+        for (ProviderInfo p : ProviderInfo.getPopularProviders()) {
+            if (p.getId().equals(providerId)) {
+                return p;
+            }
+        }
+        for (ProviderInfo p : ProviderInfo.getMoreProviders()) {
+            if (p.getId().equals(providerId)) {
+                return p;
+            }
+        }
+
+        // If not found, create a basic one
+        // This handles providers that might not be in the predefined lists
+        return ProviderInfo.getPopularProviders().get(0); // Use first provider as template
     }
 
     private void showProviderSelection() {

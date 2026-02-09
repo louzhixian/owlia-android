@@ -53,12 +53,15 @@ public class ModelSelectorDialog extends Dialog {
     }
 
     /**
-     * Constructor for use during setup (when openclaw not yet installed)
+     * Constructor for use during setup (will try CLI, fallback to static list)
      */
-    public ModelSelectorDialog(@NonNull Context context) {
+    public ModelSelectorDialog(@NonNull Context context, BotDropService service, boolean allowFallback) {
         super(context);
-        this.mService = null; // Will use static model list
+        this.mService = service;
+        this.mAllowFallback = allowFallback;
     }
+
+    private boolean mAllowFallback = false;
 
     public void show(ModelSelectedCallback callback) {
         this.mCallback = callback;
@@ -128,7 +131,7 @@ public class ModelSelectorDialog extends Dialog {
         showLoading();
 
         if (mService == null) {
-            // Use static model list (during setup, openclaw not yet installed)
+            // No service, use static model list
             List<ModelInfo> models = ModelDatabase.getAllModels();
             mAllModels = models;
             mAdapter.updateList(models);
@@ -136,19 +139,34 @@ public class ModelSelectorDialog extends Dialog {
             return;
         }
 
-        // Use openclaw CLI (after installation, in dashboard)
+        // Try to use openclaw CLI
         mService.executeCommand("termux-chroot openclaw models list", result -> {
             if (!result.success) {
-                showError("Failed to load models. Please try again.");
+                // CLI failed
+                if (mAllowFallback) {
+                    // Fallback to static list (during setup, might not be fully initialized)
+                    List<ModelInfo> models = ModelDatabase.getAllModels();
+                    mAllModels = models;
+                    mAdapter.updateList(models);
+                    showList();
+                } else {
+                    showError("Failed to load models. Please try again.");
+                }
                 return;
             }
 
-            // Parse models
+            // Parse models from CLI output
             List<ModelInfo> models = parseModelList(result.stdout);
 
             if (models.isEmpty()) {
-                showError("No models available.");
-                return;
+                if (mAllowFallback) {
+                    // Fallback to static list
+                    models = ModelDatabase.getAllModels();
+                }
+                if (models.isEmpty()) {
+                    showError("No models available.");
+                    return;
+                }
             }
 
             // Update UI
