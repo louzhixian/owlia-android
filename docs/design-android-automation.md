@@ -23,7 +23,7 @@ Non-goals:
    - Exposes a binder interface to the controller.
 
 2. **Automation Controller Service** (`AutomationControllerService`, foreground)
-   - Hosts a local API server bound to `127.0.0.1:<port>` (HTTP or WebSocket).
+   - Hosts a local API server over a Unix domain socket (AF_UNIX/SOCK_STREAM).
    - Translates API calls into binder calls on `BotDropAccessibilityService`.
    - Provides request/response timeouts and a single-flight lock to avoid concurrent conflicting actions.
 
@@ -31,15 +31,22 @@ Non-goals:
    - An OpenClaw tool/plugin calls the local API (no direct Android API access from Node).
    - Tools are selector-driven to stay stable across devices/resolutions.
 
-## API (Proposed)
+## API (MVP Implemented)
 
-- `GET /ui/tree` -> returns a compact tree of nodes:
+Transport: JSON request/response over the local socket:
+- Socket path: `$PREFIX/var/run/botdrop-ui.sock`
+- One connection = one request JSON, then one response JSON, then close.
+
+Operations:
+- `{"op":"tree","maxNodes":500}` -> compact tree of nodes:
   - `nodeId`, `package`, `class`, `text`, `contentDesc`, `resourceId`, `bounds`, `clickable`, `enabled`, `visible`, `children[]`
-- `POST /ui/find` -> `{ selector, mode: "first"|"all", timeoutMs }` -> nodes
-- `POST /ui/action` -> `{ target: selector|nodeId, action, args?, timeoutMs }`
+- `{"op":"find","selector":{...},"mode":"first"|"all","timeoutMs":0,"maxNodes":1500}` -> matches list
+- `{"op":"action","target":{"nodeId":"0/3/1"},"action":"click","args":{},"timeoutMs":0}` -> perform action on a path node
+- `{"op":"action","target":{"selector":{...}},"action":"click","timeoutMs":10000}` -> waits (optional) and acts on first match
   - actions: `click`, `longClick`, `scrollForward`, `scrollBackward`, `focus`, `setText`
-- `POST /ui/global` -> `{ action }` where action is `back|home|recents|notifications`
-- `POST /ui/wait` -> `{ event: "windowChanged"|"contentChanged"|"exists", selector?, timeoutMs }`
+- `{"op":"global","action":"back|home|recents|notifications"}`
+- `{"op":"wait","event":"windowChanged|contentChanged","sinceMs":<epoch ms>,"timeoutMs":10000}`
+- `{"op":"wait","event":"exists","selector":{...},"timeoutMs":10000,"maxNodes":1500}`
 
 ## Selectors
 
@@ -78,4 +85,3 @@ Even on a dedicated phone, keep the API local-only:
 - Unit test selector matching on synthetic trees.
 - Instrumentation tests on a simple demo app (known view IDs) for click/scroll/setText.
 - Add a diagnostic screen to show current tree + last action result.
-

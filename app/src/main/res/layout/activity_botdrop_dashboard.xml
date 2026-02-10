@@ -132,23 +132,6 @@
                     android:textColor="@color/botdrop_secondary_text" />
         </LinearLayout>
 
-        <!-- Startup Notice -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/botdrop_card_bg"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="First interaction can take 2-3 minutes while the agent warms up."
-                android:textSize="13sp"
-                android:textColor="@color/botdrop_secondary_text" />
-        </LinearLayout>
-
         <!-- Gateway Error Banner (hidden by default) -->
         <LinearLayout
             android:id="@+id/gateway_error_banner"
@@ -336,8 +319,9 @@
             android:textColor="#1A1A1A"
             android:textStyle="bold" />
 
-        <!-- Guidance Card -->
+        <!-- Automation Card -->
         <LinearLayout
+            android:id="@+id/automation_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
@@ -345,21 +329,44 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="💡 Tip"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/botdrop_secondary_text"
-                    android:layout_marginBottom="8dp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Automation"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_secondary_text"
+                android:layout_marginBottom="10dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Chat with BotDrop on your connected channel to configure more settings, add channels, or change models."
-                    android:textSize="14sp"
-                    android:textColor="@color/botdrop_on_background" />
+            <TextView
+                android:id="@+id/automation_accessibility_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Accessibility: —"
+                android:textSize="14sp"
+                android:textColor="@color/botdrop_on_background"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/automation_socket_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Socket: —"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/botdrop_secondary_text"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btn_open_accessibility_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Open Accessibility Settings"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:textColor="@color/botdrop_accent"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
         </LinearLayout>
 
         <!-- SSH Info Card -->

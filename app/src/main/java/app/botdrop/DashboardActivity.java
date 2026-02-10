@@ -16,6 +16,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -30,6 +31,9 @@ import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
+
+import app.botdrop.automation.AutomationControllerService;
+import app.botdrop.automation.UiAutomationSkillInstaller;
 
 import org.json.JSONObject;
 
@@ -65,6 +69,9 @@ public class DashboardActivity extends Activity {
     private TextView mCurrentModelText;
     private View mGatewayErrorBanner;
     private TextView mGatewayErrorText;
+    private TextView mAutomationAccessibilityStatus;
+    private TextView mAutomationSocketStatus;
+    private Button mOpenAccessibilitySettingsButton;
 
     private BotDropService mBotDropService;
     private boolean mBound = false;
@@ -107,6 +114,11 @@ public class DashboardActivity extends Activity {
         // Create notification channel
         createNotificationChannel();
 
+        // Start local UI automation controller (unix socket server). Accessibility must still be
+        // enabled by the user in system settings; otherwise API calls will return SERVICE_DISABLED.
+        startAutomationControllerService();
+        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync();
+
         // Initialize views
         mStatusText = findViewById(R.id.status_text);
         mUptimeText = findViewById(R.id.uptime_text);
@@ -121,6 +133,9 @@ public class DashboardActivity extends Activity {
         Button changeModelButton = findViewById(R.id.btn_change_model);
         mGatewayErrorBanner = findViewById(R.id.gateway_error_banner);
         mGatewayErrorText = findViewById(R.id.gateway_error_text);
+        mAutomationAccessibilityStatus = findViewById(R.id.automation_accessibility_status);
+        mAutomationSocketStatus = findViewById(R.id.automation_socket_status);
+        mOpenAccessibilitySettingsButton = findViewById(R.id.btn_open_accessibility_settings);
 
         // Setup button listeners
         mStartButton.setOnClickListener(v -> startGateway());
@@ -128,6 +143,7 @@ public class DashboardActivity extends Activity {
         mRestartButton.setOnClickListener(v -> restartGatewayForControl());
         openTerminalButton.setOnClickListener(v -> openTerminal());
         changeModelButton.setOnClickListener(v -> showModelSelector());
+        mOpenAccessibilitySettingsButton.setOnClickListener(v -> openAccessibilitySettings());
 
         mSshCard = findViewById(R.id.ssh_card);
         mSshInfoText = findViewById(R.id.ssh_info_text);
@@ -154,6 +170,21 @@ public class DashboardActivity extends Activity {
         if (stored != null) {
             showUpdateBanner(stored[0], stored[1]);
         }
+
+        refreshAutomationStatus();
+    }
+
+    private void startAutomationControllerService() {
+        try {
+            Intent i = new Intent(this, AutomationControllerService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(this, i);
+            } else {
+                startService(i);
+            }
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to start AutomationControllerService: " + e.getMessage());
+        }
     }
 
     @Override
@@ -168,6 +199,53 @@ public class DashboardActivity extends Activity {
         if (mBound) {
             unbindService(mConnection);
             mBound = false;
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshAutomationStatus();
+    }
+
+    private void refreshAutomationStatus() {
+        try {
+            boolean enabled = isBotDropAccessibilityEnabled();
+            mAutomationAccessibilityStatus.setText(enabled ? "Accessibility: ON" : "Accessibility: OFF (enable in Settings)");
+
+            java.io.File sock = new java.io.File(AutomationControllerService.SOCKET_PATH);
+            mAutomationSocketStatus.setText(sock.exists()
+                ? ("Socket: " + AutomationControllerService.SOCKET_PATH)
+                : ("Socket: (not ready) " + AutomationControllerService.SOCKET_PATH));
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to refresh automation status: " + e.getMessage());
+        }
+    }
+
+    private void openAccessibilitySettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to open accessibility settings", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean isBotDropAccessibilityEnabled() {
+        try {
+            String enabledServices = Settings.Secure.getString(getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (enabledServices == null || enabledServices.isEmpty()) return false;
+
+            String target = getPackageName() + "/app.botdrop.automation.BotDropAccessibilityService";
+            // enabledServices is colon-separated list of ComponentName strings.
+            for (String s : enabledServices.split(":")) {
+                if (target.equalsIgnoreCase(s)) return true;
+            }
+            return false;
+        } catch (Exception ignored) {
+            return false;
         }
     }
 

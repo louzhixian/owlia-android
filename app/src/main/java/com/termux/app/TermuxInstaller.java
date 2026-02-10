@@ -494,10 +494,103 @@ public final class TermuxInstaller {
                 "exec \"$PREFIX/bin/termux-chroot\" \"$PREFIX/bin/node\" \"$ENTRY\" \"$@\"\n" +
                 "BOTDROP_OPENCLAW_WRAPPER\n" +
                 "    chmod 755 $PREFIX/bin/openclaw\n" +
+                "\n" +
+                "    # BotDrop UI automation client (Unix socket)\n" +
+                "    mkdir -p $PREFIX/share/botdrop\n" +
+                "    cat > $PREFIX/share/botdrop/ui_automation_client.js <<'BOTDROP_UI_CLIENT'\n" +
+                "\"use strict\";\n" +
+                "const net = require(\"net\");\n" +
+                "const prefix = process.env.PREFIX;\n" +
+                "if (!prefix) {\n" +
+                "  console.error(\"PREFIX is not set (expected in Termux env).\");\n" +
+                "  process.exit(1);\n" +
+                "}\n" +
+                "const sock = `${prefix}/var/run/botdrop-ui.sock`;\n" +
+                "const raw = process.argv[2];\n" +
+                "if (!raw) {\n" +
+                "  console.error(\"Missing request JSON argument.\");\n" +
+                "  process.exit(1);\n" +
+                "}\n" +
+                "let req;\n" +
+                "try { req = JSON.parse(raw); } catch (e) {\n" +
+                "  console.error(\"Invalid JSON:\", e.message);\n" +
+                "  process.exit(1);\n" +
+                "}\n" +
+                "const s = net.createConnection({ path: sock }, () => s.end(JSON.stringify(req)));\n" +
+                "let buf = \"\";\n" +
+                "s.on(\"data\", (d) => (buf += d.toString(\"utf8\")));\n" +
+                "s.on(\"end\", () => {\n" +
+                "  try {\n" +
+                "    const obj = JSON.parse(buf);\n" +
+                "    process.stdout.write(JSON.stringify(obj, null, 2) + \"\\n\");\n" +
+                "  } catch {\n" +
+                "    process.stdout.write(buf + \"\\n\");\n" +
+                "  }\n" +
+                "});\n" +
+                "s.on(\"error\", (e) => {\n" +
+                "  console.error(\"Socket error:\", e.message);\n" +
+                "  process.exit(1);\n" +
+                "});\n" +
+                "BOTDROP_UI_CLIENT\n" +
+                "\n" +
+                "    cat > $PREFIX/bin/botdrop-ui <<'BOTDROP_UI_WRAPPER'\n" +
+                "#!" + com.termux.shared.termux.TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash\n" +
+                "set -e\n" +
+                "if [ $# -lt 1 ]; then\n" +
+                "  echo \"usage: botdrop-ui '{...json...}'\" >&2\n" +
+                "  exit 2\n" +
+                "fi\n" +
+                "exec \"$PREFIX/bin/node\" \"$PREFIX/share/botdrop/ui_automation_client.js\" \"$1\"\n" +
+                "BOTDROP_UI_WRAPPER\n" +
+                "    chmod 755 $PREFIX/bin/botdrop-ui\n" +
+                "\n" +
+                "    # Install an OpenClaw skill README so the agent knows how to drive the UI.\n" +
+                "    mkdir -p $HOME/.openclaw/skills/botdrop-ui\n" +
+                "    mkdir -p $HOME/.openclaw/agents/main/agent/skills/botdrop-ui\n" +
+                "    cat > $HOME/.openclaw/skills/botdrop-ui/SKILL.md <<'BOTDROP_UI_SKILL'\n" +
+                "# BotDrop UI Automation (Android)\n" +
+                "\n" +
+                "This skill lets the agent control Android UI using BotDrop's AccessibilityService and a local Unix socket API.\n" +
+                "\n" +
+                "Prerequisites\n" +
+                "- BotDrop app opened at least once (Automation Controller notification is visible).\n" +
+                "- Accessibility: enable \"BotDrop Accessibility\" in Android Settings.\n" +
+                "\n" +
+                "How To Call\n" +
+                "- Use the `botdrop-ui` CLI from the Termux environment.\n" +
+                "- It takes exactly one argument: a JSON string.\n" +
+                "\n" +
+                "Examples\n" +
+                "```bash\n" +
+                "botdrop-ui '{\"op\":\"ping\"}'\n" +
+                "botdrop-ui '{\"op\":\"tree\",\"maxNodes\":400}'\n" +
+                "botdrop-ui '{\"op\":\"find\",\"selector\":{\"resourceId\":\"com.example:id/ok\"},\"mode\":\"first\",\"timeoutMs\":3000}'\n" +
+                "botdrop-ui '{\"op\":\"action\",\"target\":{\"selector\":{\"textContains\":\"OK\"}},\"action\":\"click\",\"timeoutMs\":3000}'\n" +
+                "botdrop-ui '{\"op\":\"action\",\"target\":{\"selector\":{\"resourceId\":\"com.example:id/input\"}},\"action\":\"setText\",\"args\":{\"text\":\"hello\"},\"timeoutMs\":3000}'\n" +
+                "botdrop-ui '{\"op\":\"wait\",\"event\":\"windowChanged\",\"sinceMs\":0,\"timeoutMs\":5000}'\n" +
+                "```\n" +
+                "\n" +
+                "Selectors (MVP)\n" +
+                "- Stable fields: `resourceId`, `contentDescContains`, `packageName`, `className`\n" +
+                "- Text fields: `text`, `textContains`\n" +
+                "- Composition: `and`, `or`, `not`, `parent`\n" +
+                "\n" +
+                "Notes\n" +
+                "- Prefer `resourceId` over text when possible.\n" +
+                "- Use `timeoutMs` on `find`/`action` for synchronization.\n" +
+                "BOTDROP_UI_SKILL\n" +
+                "    cp -f $HOME/.openclaw/skills/botdrop-ui/SKILL.md $HOME/.openclaw/agents/main/agent/skills/botdrop-ui/SKILL.md 2>/dev/null || true\n" +
+                "\n" +
+                "    # Also install into OpenClaw's system skills dir for out-of-box loading.\n" +
+                "    SYS_SKILLS_DIR=\"$PREFIX/lib/node_modules/openclaw/skills\"\n" +
+                "    if [ -d \"$PREFIX/lib/node_modules/openclaw\" ]; then\n" +
+                "        mkdir -p \"$SYS_SKILLS_DIR/botdrop-ui\" 2>/dev/null || true\n" +
+                "        cp -f \"$HOME/.openclaw/skills/botdrop-ui/SKILL.md\" \"$SYS_SKILLS_DIR/botdrop-ui/SKILL.md\" 2>/dev/null || true\n" +
+                "    fi\n" +
                 "    echo \"BOTDROP_STEP:2:DONE\"\n" +
                 "    touch \"$MARKER\"\n" +
                 "    echo \"BOTDROP_COMPLETE\"\n" +
-                "else\n" +
+            "else\n" +
                 "    echo \"BOTDROP_ERROR:npm install failed (exit $NPM_EXIT): $NPM_OUTPUT\"\n" +
                 "    exit 1\n" +
                 "fi\n";

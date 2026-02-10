@@ -23,6 +23,8 @@ import com.termux.R;
 import com.termux.app.TermuxInstaller;
 import com.termux.shared.logger.Logger;
 
+import app.botdrop.automation.UiAutomationSkillInstaller;
+
 import org.json.JSONObject;
 
 /**
@@ -84,6 +86,9 @@ public class BotDropLauncherActivity extends Activity {
 
         // Upgrade migration: clean deprecated keys from existing OpenClaw config.
         BotDropConfig.sanitizeLegacyConfig();
+
+        // Best-effort: keep OpenClaw system skills in sync across upgrades.
+        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync();
 
         // Trigger update check early (results stored for Dashboard to display)
         UpdateChecker.check(this, null);
