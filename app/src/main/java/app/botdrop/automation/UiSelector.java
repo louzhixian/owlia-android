@@ -83,6 +83,7 @@ public final class UiSelector {
         final String contentDesc = optString(selector, "contentDesc");
         final String contentDescContains = optString(selector, "contentDescContains");
         final Boolean clickable = optBool(selector, "clickable");
+        final Boolean scrollable = optBool(selector, "scrollable");
         final Boolean enabled = optBool(selector, "enabled");
         final Boolean visible = optBool(selector, "visible");
 
@@ -104,6 +105,7 @@ public final class UiSelector {
             if (contentDescContains != null && (n.contentDesc == null || !n.contentDesc.contains(contentDescContains))) return false;
 
             if (clickable != null && clickable.booleanValue() != n.clickable) return false;
+            if (scrollable != null && scrollable.booleanValue() != n.scrollable) return false;
             if (enabled != null && enabled.booleanValue() != n.enabled) return false;
             if (visible != null && visible.booleanValue() != n.visible) return false;
 
@@ -145,4 +147,3 @@ public final class UiSelector {
         return new Rect(a.optInt(0), a.optInt(1), a.optInt(2), a.optInt(3));
     }
 }
-

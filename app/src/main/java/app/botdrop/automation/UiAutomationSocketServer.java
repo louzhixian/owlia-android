@@ -162,7 +162,12 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
                 String foundId = null;
                 if (findRes.optJSONArray("matches") != null && findRes.optJSONArray("matches").length() > 0) {
                     JSONObject m0 = findRes.optJSONArray("matches").optJSONObject(0);
-                    if (m0 != null) foundId = m0.optString("nodeId", null);
+                    if (m0 != null) {
+                        foundId = m0.optString("actionNodeId", null);
+                        if (foundId == null || foundId.isEmpty()) {
+                            foundId = m0.optString("nodeId", null);
+                        }
+                    }
                 }
                 if (foundId == null || foundId.isEmpty()) return jsonErr("NOT_FOUND", "no matching node");
                 return svc.actionByNodeId(foundId, action, args, timeoutMs);

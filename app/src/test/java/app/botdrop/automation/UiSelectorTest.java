@@ -11,7 +11,7 @@ public class UiSelectorTest {
 
     private static UiNode node(String id, String pkg, String cls, String text, String desc, String resId,
                                boolean clickable, boolean enabled, boolean visible, Rect b) {
-        return new UiNode(id, pkg, cls, text, desc, resId, clickable, enabled, visible, b);
+        return new UiNode(id, pkg, cls, text, desc, resId, clickable, false, enabled, visible, b);
     }
 
     @Test
@@ -67,4 +67,3 @@ public class UiSelectorTest {
         assertFalse(UiSelector.compile(sel).matches(child, null));
     }
 }
-

@@ -24,6 +24,7 @@ public class UiNode {
     public final @Nullable String contentDesc;
     public final @Nullable String resourceId;
     public final boolean clickable;
+    public final boolean scrollable;
     public final boolean enabled;
     public final boolean visible;
     public final Rect bounds;
@@ -36,6 +37,7 @@ public class UiNode {
                   @Nullable String contentDesc,
                   @Nullable String resourceId,
                   boolean clickable,
+                  boolean scrollable,
                   boolean enabled,
                   boolean visible,
                   Rect bounds) {
@@ -46,6 +48,7 @@ public class UiNode {
         this.contentDesc = contentDesc;
         this.resourceId = resourceId;
         this.clickable = clickable;
+        this.scrollable = scrollable;
         this.enabled = enabled;
         this.visible = visible;
         this.bounds = bounds;
@@ -60,6 +63,7 @@ public class UiNode {
         Json.put(obj, "contentDesc", contentDesc);
         Json.put(obj, "resourceId", resourceId);
         Json.put(obj, "clickable", clickable);
+        Json.put(obj, "scrollable", scrollable);
         Json.put(obj, "enabled", enabled);
         Json.put(obj, "visible", visible);
 
@@ -80,4 +84,3 @@ public class UiNode {
         return obj;
     }
 }
-

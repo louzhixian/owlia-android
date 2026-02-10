@@ -162,7 +162,8 @@ public class BotDropAccessibilityService extends AccessibilityService {
             NodeBudget budget = new NodeBudget(maxNodes);
 
             JSONArray matches = new JSONArray();
-            findMatches(root, "", null, matcher, mode, matches, budget);
+            java.util.ArrayList<UiNode> stack = new java.util.ArrayList<>();
+            findMatches(root, "", stack, matcher, mode, matches, budget);
 
             Json.put(out, "ok", true);
             Json.put(out, "mode", mode);
@@ -323,6 +324,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
         obj.put("contentDesc", node.getContentDescription() != null ? node.getContentDescription().toString() : JSONObject.NULL);
         obj.put("resourceId", node.getViewIdResourceName() != null ? node.getViewIdResourceName() : JSONObject.NULL);
         obj.put("clickable", node.isClickable());
+        obj.put("scrollable", node.isScrollable());
         obj.put("enabled", node.isEnabled());
         obj.put("visible", node.isVisibleToUser());
 
@@ -353,7 +355,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
 
     private void findMatches(AccessibilityNodeInfo node,
                              String path,
-                             @Nullable UiNode parentSnapshot,
+                             java.util.ArrayList<UiNode> stack,
                              UiSelector.Matcher matcher,
                              String mode,
                              JSONArray out,
@@ -361,25 +363,44 @@ public class BotDropAccessibilityService extends AccessibilityService {
         if (!budget.canVisit()) return;
         budget.onVisit();
 
+        UiNode parent = stack.isEmpty() ? null : stack.get(stack.size() - 1);
         UiNode snap = snapshotNode(node, path);
-        if (matcher.matches(snap, parentSnapshot)) {
-            out.put(snap.toJson(false));
-            if ("first".equals(mode)) return;
-        }
 
-        int childCount = node.getChildCount();
-        for (int i = 0; i < childCount; i++) {
-            if (!budget.canVisit()) break;
-            AccessibilityNodeInfo child = null;
-            try {
-                child = node.getChild(i);
-                if (child == null) continue;
-                String childPath = path.isEmpty() ? String.valueOf(i) : (path + "/" + i);
-                findMatches(child, childPath, snap, matcher, mode, out, budget);
-                if ("first".equals(mode) && out.length() > 0) return;
-            } finally {
-                if (child != null) child.recycle();
+        stack.add(snap);
+        try {
+            if (matcher.matches(snap, parent)) {
+                UiNode actionTarget = resolveActionTarget(stack);
+                JSONObject json = snap.toJson(false);
+                if (actionTarget != null) {
+                    Json.put(json, "actionNodeId", actionTarget.nodeId);
+                    // Provide bounds of actionable target, since clicks typically use its center.
+                    org.json.JSONArray b = new org.json.JSONArray();
+                    b.put(actionTarget.bounds.left);
+                    b.put(actionTarget.bounds.top);
+                    b.put(actionTarget.bounds.right);
+                    b.put(actionTarget.bounds.bottom);
+                    Json.put(json, "actionBounds", b);
+                }
+                out.put(json);
+            if ("first".equals(mode)) return;
             }
+
+            int childCount = node.getChildCount();
+            for (int i = 0; i < childCount; i++) {
+                if (!budget.canVisit()) break;
+                AccessibilityNodeInfo child = null;
+                try {
+                    child = node.getChild(i);
+                    if (child == null) continue;
+                    String childPath = path.isEmpty() ? String.valueOf(i) : (path + "/" + i);
+                    findMatches(child, childPath, stack, matcher, mode, out, budget);
+                    if ("first".equals(mode) && out.length() > 0) return;
+                } finally {
+                    if (child != null) child.recycle();
+                }
+            }
+        } finally {
+            stack.remove(stack.size() - 1);
         }
     }
 
@@ -424,10 +445,26 @@ public class BotDropAccessibilityService extends AccessibilityService {
             node.getContentDescription() != null ? node.getContentDescription().toString() : null,
             node.getViewIdResourceName(),
             node.isClickable(),
+            node.isScrollable(),
             node.isEnabled(),
             node.isVisibleToUser(),
             r
         );
+    }
+
+    /**
+     * Pick the nearest clickable+enabled+visible node from the current stack, starting at the leaf.
+     * This greatly improves click reliability when text nodes are wrapped by clickable containers.
+     */
+    private @Nullable UiNode resolveActionTarget(java.util.ArrayList<UiNode> stack) {
+        for (int i = stack.size() - 1; i >= 0; i--) {
+            UiNode n = stack.get(i);
+            if (!n.visible || !n.enabled) continue;
+            if (!n.clickable) continue;
+            if (n.bounds.width() <= 1 || n.bounds.height() <= 1) continue;
+            return n;
+        }
+        return null;
     }
 
     private @Nullable AccessibilityNodeInfo findNodeByPath(AccessibilityNodeInfo root, @Nullable String path) {
@@ -483,6 +520,9 @@ public class BotDropAccessibilityService extends AccessibilityService {
                 if (text == null) return false;
                 android.os.Bundle b = new android.os.Bundle();
                 b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+                if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b)) return true;
+                // Some views require focus first.
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
                 return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b);
             default:
                 return false;
