@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -43,6 +44,7 @@ public class GatewayMonitorService extends Service {
     private Handler mHandler = new Handler(Looper.getMainLooper());
     private Runnable mMonitorRunnable;
     private PowerManager.WakeLock mWakeLock;
+    private WifiManager.WifiLock mWifiLock;
     private long mWakeLockLastAcquired = 0;
     private BotDropService mBotDropService;
     private boolean mBotDropServiceBound = false;
@@ -122,6 +124,23 @@ public class GatewayMonitorService extends Service {
             mWakeLock.setReferenceCounted(false); // Ensure single release is enough
             acquireWakeLock();
         }
+
+        // Keep Wi-Fi from entering power-save that can stall long-lived connections (SSH, TG, etc.)
+        // when the app is backgrounded. This is best-effort; on some devices the lock may still
+        // be ignored by OEM power management.
+        try {
+            WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "BotDrop::GatewayWifi");
+                mWifiLock.setReferenceCounted(false);
+                if (!mWifiLock.isHeld()) {
+                    mWifiLock.acquire();
+                    Logger.logDebug(LOG_TAG, "WifiLock acquired");
+                }
+            }
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to acquire WifiLock: " + e.getMessage());
+        }
     }
 
     @Override
@@ -166,6 +185,13 @@ public class GatewayMonitorService extends Service {
         // Release wake lock
         if (mWakeLock != null && mWakeLock.isHeld()) {
             mWakeLock.release();
+        }
+
+        // Release Wi-Fi lock
+        if (mWifiLock != null && mWifiLock.isHeld()) {
+            try {
+                mWifiLock.release();
+            } catch (Exception ignored) {}
         }
     }
 
