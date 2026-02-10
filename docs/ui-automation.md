@@ -52,3 +52,10 @@ botdrop-ui '{"op":"find","selector":{"textContains":"OK"},"mode":"first","timeou
 botdrop-ui '{"op":"action","target":{"selector":{"textContains":"OK"}},"action":"click","timeoutMs":3000}'
 ```
 
+## Selector Notes
+
+- `ancestor`: constrain matches to nodes that are contained within an ancestor node.
+  - Example: only match "OK" under a specific container:
+  - `{"text":"OK","ancestor":{"resourceId":"com.example:id/container"}}`
+- `scrollable`: match scroll containers:
+  - `{"scrollable":true,"packageName":"com.example"}`

@@ -11,70 +11,132 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Compiles a JSON selector into a matcher.
+ * Compiles JSON selectors into matchers.
  *
- * Supported fields (MVP):
+ * Leaf fields:
  * - packageName, className, resourceId
  * - text, textContains
  * - contentDesc, contentDescContains
- * - clickable, enabled, visible
+ * - clickable, scrollable, enabled, visible
  * - boundsContains: [x,y]
  * - boundsIntersects: [l,t,r,b]
- * - and: [selector...], or: [selector...], not: selector
- * - parent: selector (immediate parent)
  *
- * If a selector is empty, it matches everything.
+ * Composition:
+ * - and: [selector...], or: [selector...], not: selector
+ *
+ * Structural:
+ * - parent: selector (immediate parent)
+ * - ancestor: selector (any ancestor in the path, excluding self)
  */
 public final class UiSelector {
 
     private UiSelector() {}
 
+    /** Legacy matcher (node + parent only). Prefer {@link #compileStack(JSONObject)} for new code. */
     public interface Matcher {
         boolean matches(UiNode node, @Nullable UiNode parent);
     }
 
+    /** Matcher that evaluates against the full path from root->current (stack). */
+    public interface StackMatcher {
+        boolean matches(List<UiNode> stack);
+    }
+
     public static Matcher compile(@Nullable JSONObject selector) {
-        if (selector == null) return (n, p) -> true;
+        // Backwards-compatible: evaluate as a stack matcher using [node] or [parent,node].
+        StackMatcher sm = compileStack(selector);
+        return (n, p) -> {
+            if (p == null) return sm.matches(java.util.Collections.singletonList(n));
+            List<UiNode> s = new ArrayList<>(2);
+            s.add(p);
+            s.add(n);
+            return sm.matches(s);
+        };
+    }
+
+    public static StackMatcher compileStack(@Nullable JSONObject selector) {
+        if (selector == null) return stack -> true;
 
         // Composite operators take precedence.
         if (selector.has("and")) {
             JSONArray arr = selector.optJSONArray("and");
-            List<Matcher> ms = new ArrayList<>();
+            List<StackMatcher> ms = new ArrayList<>();
             if (arr != null) {
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject s = arr.optJSONObject(i);
-                    if (s != null) ms.add(compile(s));
+                    if (s != null) ms.add(compileStack(s));
                 }
             }
-            return (n, p) -> {
-                for (Matcher m : ms) if (!m.matches(n, p)) return false;
+            return stack -> {
+                for (StackMatcher m : ms) if (!m.matches(stack)) return false;
                 return true;
             };
         }
 
         if (selector.has("or")) {
             JSONArray arr = selector.optJSONArray("or");
-            List<Matcher> ms = new ArrayList<>();
+            List<StackMatcher> ms = new ArrayList<>();
             if (arr != null) {
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject s = arr.optJSONObject(i);
-                    if (s != null) ms.add(compile(s));
+                    if (s != null) ms.add(compileStack(s));
                 }
             }
-            return (n, p) -> {
+            return stack -> {
                 if (ms.isEmpty()) return true;
-                for (Matcher m : ms) if (m.matches(n, p)) return true;
+                for (StackMatcher m : ms) if (m.matches(stack)) return true;
                 return false;
             };
         }
 
         if (selector.has("not")) {
             JSONObject s = selector.optJSONObject("not");
-            Matcher m = compile(s);
-            return (n, p) -> !m.matches(n, p);
+            StackMatcher m = compileStack(s);
+            return stack -> !m.matches(stack);
         }
 
-        // Leaf matcher with optional parent constraint.
+        // Leaf matcher for the current node.
+        final LeafMatcher leaf = compileLeaf(selector);
+
+        // Structural constraints.
+        final JSONObject parentSel = selector.optJSONObject("parent");
+        final StackMatcher parentMatcher = parentSel != null ? compileStack(parentSel) : null;
+
+        final JSONObject ancestorSel = selector.optJSONObject("ancestor");
+        final StackMatcher ancestorMatcher = ancestorSel != null ? compileStack(ancestorSel) : null;
+
+        return stack -> {
+            if (stack == null || stack.isEmpty()) return false;
+            UiNode cur = stack.get(stack.size() - 1);
+            UiNode parent = stack.size() >= 2 ? stack.get(stack.size() - 2) : null;
+
+            if (!leaf.matches(cur, parent)) return false;
+
+            if (parentMatcher != null) {
+                if (stack.size() < 2) return false;
+                if (!parentMatcher.matches(stack.subList(0, stack.size() - 1))) return false;
+            }
+
+            if (ancestorMatcher != null) {
+                boolean ok = false;
+                for (int i = stack.size() - 1; i >= 1; i--) { // evaluate each ancestor as "current"
+                    if (ancestorMatcher.matches(stack.subList(0, i))) {
+                        ok = true;
+                        break;
+                    }
+                }
+                if (!ok) return false;
+            }
+
+            return true;
+        };
+    }
+
+    private interface LeafMatcher {
+        boolean matches(UiNode node, @Nullable UiNode parent);
+    }
+
+    private static LeafMatcher compileLeaf(JSONObject selector) {
         final String packageName = optString(selector, "packageName");
         final String className = optString(selector, "className");
         final String resourceId = optString(selector, "resourceId");
@@ -89,9 +151,6 @@ public final class UiSelector {
 
         final int[] boundsContains = optPoint(selector, "boundsContains");
         final Rect boundsIntersects = optRect(selector, "boundsIntersects");
-
-        final JSONObject parentSel = selector.optJSONObject("parent");
-        final Matcher parentMatcher = parentSel != null ? compile(parentSel) : null;
 
         return (n, p) -> {
             if (packageName != null && !packageName.equals(n.packageName)) return false;
@@ -114,11 +173,6 @@ public final class UiSelector {
             }
             if (boundsIntersects != null) {
                 if (!Rect.intersects(n.bounds, boundsIntersects)) return false;
-            }
-
-            if (parentMatcher != null) {
-                if (p == null) return false;
-                if (!parentMatcher.matches(p, null)) return false;
             }
 
             return true;
@@ -147,3 +201,4 @@ public final class UiSelector {
         return new Rect(a.optInt(0), a.optInt(1), a.optInt(2), a.optInt(3));
     }
 }
+

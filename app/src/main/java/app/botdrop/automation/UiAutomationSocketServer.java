@@ -163,7 +163,12 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
                 if (findRes.optJSONArray("matches") != null && findRes.optJSONArray("matches").length() > 0) {
                     JSONObject m0 = findRes.optJSONArray("matches").optJSONObject(0);
                     if (m0 != null) {
-                        foundId = m0.optString("actionNodeId", null);
+                        if ("scrollForward".equals(action) || "scrollBackward".equals(action)) {
+                            foundId = m0.optString("scrollNodeId", null);
+                        }
+                        if (foundId == null || foundId.isEmpty()) {
+                            foundId = m0.optString("actionNodeId", null);
+                        }
                         if (foundId == null || foundId.isEmpty()) {
                             foundId = m0.optString("nodeId", null);
                         }

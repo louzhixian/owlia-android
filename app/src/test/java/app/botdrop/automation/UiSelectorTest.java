@@ -5,6 +5,9 @@ import android.graphics.Rect;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+
 import static org.junit.Assert.*;
 
 public class UiSelectorTest {
@@ -20,7 +23,7 @@ public class UiSelectorTest {
             "com.example:id/ok", true, true, true, new Rect(0, 0, 10, 10));
 
         JSONObject sel = new JSONObject().put("resourceId", "com.example:id/ok");
-        assertTrue(UiSelector.compile(sel).matches(n, null));
+        assertTrue(UiSelector.compileStack(sel).matches(Collections.singletonList(n)));
     }
 
     @Test
@@ -29,7 +32,7 @@ public class UiSelectorTest {
             null, false, true, true, new Rect(0, 0, 10, 10));
 
         JSONObject sel = new JSONObject().put("textContains", "world");
-        assertTrue(UiSelector.compile(sel).matches(n, null));
+        assertTrue(UiSelector.compileStack(sel).matches(Collections.singletonList(n)));
     }
 
     @Test
@@ -43,13 +46,13 @@ public class UiSelectorTest {
                 .put(new JSONObject().put("clickable", true))
                 .put(new JSONObject().put("not", new JSONObject().put("text", "Cancel"))));
 
-        assertTrue(UiSelector.compile(sel).matches(n, null));
+        assertTrue(UiSelector.compileStack(sel).matches(Collections.singletonList(n)));
 
         JSONObject sel2 = new JSONObject()
             .put("or", new org.json.JSONArray()
                 .put(new JSONObject().put("text", "Cancel"))
                 .put(new JSONObject().put("resourceId", "com.example:id/submit")));
-        assertTrue(UiSelector.compile(sel2).matches(n, null));
+        assertTrue(UiSelector.compileStack(sel2).matches(Collections.singletonList(n)));
     }
 
     @Test
@@ -63,7 +66,35 @@ public class UiSelectorTest {
             .put("resourceId", "com.example:id/ok")
             .put("parent", new JSONObject().put("resourceId", "com.example:id/container"));
 
-        assertTrue(UiSelector.compile(sel).matches(child, parent));
-        assertFalse(UiSelector.compile(sel).matches(child, null));
+        ArrayList<UiNode> stack = new ArrayList<>();
+        stack.add(parent);
+        stack.add(child);
+        assertTrue(UiSelector.compileStack(sel).matches(stack));
+        assertFalse(UiSelector.compileStack(sel).matches(Collections.singletonList(child)));
+    }
+
+    @Test
+    public void matchAncestorConstraint() throws Exception {
+        UiNode root = node("0", "com.example", "android.widget.FrameLayout", null, null,
+            "com.example:id/root", false, true, true, new Rect(0, 0, 100, 100));
+        UiNode container = node("0/0", "com.example", "android.widget.LinearLayout", null, null,
+            "com.example:id/container", false, true, true, new Rect(0, 0, 100, 100));
+        UiNode child = node("0/0/0", "com.example", "android.widget.TextView", "OK", null,
+            "com.example:id/label", false, true, true, new Rect(0, 0, 10, 10));
+
+        JSONObject sel = new JSONObject()
+            .put("text", "OK")
+            .put("ancestor", new JSONObject().put("resourceId", "com.example:id/container"));
+
+        ArrayList<UiNode> stack = new ArrayList<>();
+        stack.add(root);
+        stack.add(container);
+        stack.add(child);
+        assertTrue(UiSelector.compileStack(sel).matches(stack));
+
+        JSONObject sel2 = new JSONObject()
+            .put("text", "OK")
+            .put("ancestor", new JSONObject().put("resourceId", "com.example:id/missing"));
+        assertFalse(UiSelector.compileStack(sel2).matches(stack));
     }
 }
