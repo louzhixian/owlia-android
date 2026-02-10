@@ -59,3 +59,7 @@ botdrop-ui '{"op":"action","target":{"selector":{"textContains":"OK"}},"action":
   - `{"text":"OK","ancestor":{"resourceId":"com.example:id/container"}}`
 - `scrollable`: match scroll containers:
   - `{"scrollable":true,"packageName":"com.example"}`
+- `hasChild`: require at least one immediate child to match:
+  - `{"resourceId":"com.example:id/item","hasChild":{"textContains":"Follow"}}`
+- `hasDescendant`: require at least one descendant (any depth) to match:
+  - `{"resourceId":"com.example:id/list","hasDescendant":{"textContains":"Loading"}}`

@@ -42,6 +42,20 @@ public final class UiSelector {
         boolean matches(List<UiNode> stack);
     }
 
+    public static final class Plan {
+        public final StackMatcher baseMatcher;
+        public final @Nullable StackMatcher hasChildMatcher;
+        public final @Nullable StackMatcher hasDescendantMatcher;
+
+        private Plan(StackMatcher baseMatcher,
+                     @Nullable StackMatcher hasChildMatcher,
+                     @Nullable StackMatcher hasDescendantMatcher) {
+            this.baseMatcher = baseMatcher;
+            this.hasChildMatcher = hasChildMatcher;
+            this.hasDescendantMatcher = hasDescendantMatcher;
+        }
+    }
+
     public static Matcher compile(@Nullable JSONObject selector) {
         // Backwards-compatible: evaluate as a stack matcher using [node] or [parent,node].
         StackMatcher sm = compileStack(selector);
@@ -52,6 +66,27 @@ public final class UiSelector {
             s.add(n);
             return sm.matches(s);
         };
+    }
+
+    /**
+     * Compile a selector plan including subtree constraints:
+     * - hasChild: selector that must match at least one immediate child
+     * - hasDescendant: selector that must match at least one descendant
+     */
+    public static Plan compilePlan(@Nullable JSONObject selector) {
+        if (selector == null) {
+            return new Plan(stack -> true, null, null);
+        }
+
+        JSONObject hasChildSel = selector.optJSONObject("hasChild");
+        JSONObject hasDescSel = selector.optJSONObject("hasDescendant");
+
+        JSONObject baseSel = copyWithoutKeys(selector, "hasChild", "hasDescendant");
+        StackMatcher base = compileStack(baseSel);
+        StackMatcher child = hasChildSel != null ? compileStack(hasChildSel) : null;
+        StackMatcher desc = hasDescSel != null ? compileStack(hasDescSel) : null;
+
+        return new Plan(base, child, desc);
     }
 
     public static StackMatcher compileStack(@Nullable JSONObject selector) {
@@ -179,6 +214,24 @@ public final class UiSelector {
         };
     }
 
+    private static JSONObject copyWithoutKeys(JSONObject src, String... keysToRemove) {
+        JSONObject o = new JSONObject();
+        try {
+            java.util.HashSet<String> remove = new java.util.HashSet<>();
+            if (keysToRemove != null) {
+                java.util.Collections.addAll(remove, keysToRemove);
+            }
+            java.util.Iterator<String> it = src.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                if (remove.contains(k)) continue;
+                Object v = src.opt(k);
+                o.put(k, v);
+            }
+        } catch (Exception ignored) {}
+        return o;
+    }
+
     private static @Nullable String optString(JSONObject o, String k) {
         String s = o.optString(k, null);
         return (s == null || s.isEmpty()) ? null : s;
@@ -201,4 +254,3 @@ public final class UiSelector {
         return new Rect(a.optInt(0), a.optInt(1), a.optInt(2), a.optInt(3));
     }
 }
-

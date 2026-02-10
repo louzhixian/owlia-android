@@ -97,4 +97,28 @@ public class UiSelectorTest {
             .put("ancestor", new JSONObject().put("resourceId", "com.example:id/missing"));
         assertFalse(UiSelector.compileStack(sel2).matches(stack));
     }
+
+    @Test
+    public void compilePlanExtractsSubtreeSelectors() throws Exception {
+        UiNode n = node("0", "com.example", "android.widget.LinearLayout", null, null,
+            "com.example:id/container", false, true, true, new Rect(0, 0, 100, 100));
+        UiNode child = node("0/0", "com.example", "android.widget.TextView", "OK", null,
+            "com.example:id/label", false, true, true, new Rect(0, 0, 10, 10));
+
+        JSONObject sel = new JSONObject()
+            .put("resourceId", "com.example:id/container")
+            .put("hasChild", new JSONObject().put("text", "OK"));
+
+        UiSelector.Plan plan = UiSelector.compilePlan(sel);
+        assertNotNull(plan.baseMatcher);
+        assertNotNull(plan.hasChildMatcher);
+        assertNull(plan.hasDescendantMatcher);
+
+        ArrayList<UiNode> stack = new ArrayList<>();
+        stack.add(n);
+        assertTrue(plan.baseMatcher.matches(stack));
+
+        stack.add(child);
+        assertTrue(plan.hasChildMatcher.matches(stack));
+    }
 }

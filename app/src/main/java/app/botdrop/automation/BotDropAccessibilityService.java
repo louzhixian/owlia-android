@@ -158,12 +158,12 @@ public class BotDropAccessibilityService extends AccessibilityService {
                 return out;
             }
 
-            UiSelector.StackMatcher matcher = UiSelector.compileStack(selector);
+            UiSelector.Plan plan = UiSelector.compilePlan(selector);
             NodeBudget budget = new NodeBudget(maxNodes);
 
             JSONArray matches = new JSONArray();
             java.util.ArrayList<UiNode> stack = new java.util.ArrayList<>();
-            findMatches(root, "", stack, matcher, mode, matches, budget);
+            findMatches(root, "", stack, plan, mode, matches, budget);
 
             Json.put(out, "ok", true);
             Json.put(out, "mode", mode);
@@ -263,11 +263,11 @@ public class BotDropAccessibilityService extends AccessibilityService {
     }
 
     public boolean waitForExists(JSONObject selector, long timeoutMs, int maxNodes) {
-        UiSelector.StackMatcher matcher = UiSelector.compileStack(selector);
+        UiSelector.Plan plan = UiSelector.compilePlan(selector);
         long deadline = System.currentTimeMillis() + Math.max(0L, timeoutMs);
 
         // Initial check
-        if (existsNow(matcher, maxNodes)) return true;
+        if (existsNow(plan, maxNodes)) return true;
 
         synchronized (mEventLock) {
             while (true) {
@@ -279,19 +279,19 @@ public class BotDropAccessibilityService extends AccessibilityService {
                 } catch (InterruptedException ignored) {
                     return false;
                 }
-                if (existsNow(matcher, maxNodes)) return true;
+                if (existsNow(plan, maxNodes)) return true;
             }
         }
     }
 
-    private boolean existsNow(UiSelector.StackMatcher matcher, int maxNodes) {
+    private boolean existsNow(UiSelector.Plan plan, int maxNodes) {
         AccessibilityNodeInfo root = null;
         try {
             root = getRootInActiveWindow();
             if (root == null) return false;
             NodeBudget budget = new NodeBudget(maxNodes);
             java.util.ArrayList<UiNode> stack = new java.util.ArrayList<>();
-            return findFirstMatch(root, "", stack, matcher, budget) != null;
+            return findFirstMatch(root, "", stack, plan, budget) != null;
         } finally {
             if (root != null) root.recycle();
         }
@@ -357,7 +357,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
     private void findMatches(AccessibilityNodeInfo node,
                              String path,
                              java.util.ArrayList<UiNode> stack,
-                             UiSelector.StackMatcher matcher,
+                             UiSelector.Plan plan,
                              String mode,
                              JSONArray out,
                              NodeBudget budget) throws Exception {
@@ -368,7 +368,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
 
         stack.add(snap);
         try {
-            if (matcher.matches(stack)) {
+            if (planMatchesCurrent(node, stack, plan, budget)) {
                 UiNode actionTarget = resolveActionTarget(stack);
                 UiNode scrollTarget = resolveScrollTarget(stack);
                 JSONObject json = snap.toJson(false);
@@ -403,7 +403,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
                     child = node.getChild(i);
                     if (child == null) continue;
                     String childPath = path.isEmpty() ? String.valueOf(i) : (path + "/" + i);
-                    findMatches(child, childPath, stack, matcher, mode, out, budget);
+                    findMatches(child, childPath, stack, plan, mode, out, budget);
                     if ("first".equals(mode) && out.length() > 0) return;
                 } finally {
                     if (child != null) child.recycle();
@@ -417,7 +417,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
     private @Nullable String findFirstMatch(AccessibilityNodeInfo node,
                                            String path,
                                            java.util.ArrayList<UiNode> stack,
-                                           UiSelector.StackMatcher matcher,
+                                           UiSelector.Plan plan,
                                            NodeBudget budget) {
         if (!budget.canVisit()) return null;
         budget.onVisit();
@@ -425,7 +425,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
         UiNode snap = snapshotNode(node, path);
         stack.add(snap);
         try {
-            if (matcher.matches(stack)) {
+            if (planMatchesCurrent(node, stack, plan, budget)) {
                 return path;
             }
 
@@ -437,7 +437,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
                     child = node.getChild(i);
                     if (child == null) continue;
                     String childPath = path.isEmpty() ? String.valueOf(i) : (path + "/" + i);
-                    String match = findFirstMatch(child, childPath, stack, matcher, budget);
+                    String match = findFirstMatch(child, childPath, stack, plan, budget);
                     if (match != null) return match;
                 } finally {
                     if (child != null) child.recycle();
@@ -447,6 +447,94 @@ public class BotDropAccessibilityService extends AccessibilityService {
         } finally {
             stack.remove(stack.size() - 1);
         }
+    }
+
+    private boolean planMatchesCurrent(AccessibilityNodeInfo node,
+                                      java.util.ArrayList<UiNode> stack,
+                                      UiSelector.Plan plan,
+                                      NodeBudget budget) {
+        if (!plan.baseMatcher.matches(stack)) return false;
+
+        if (plan.hasChildMatcher != null) {
+            if (!hasImmediateChildMatch(node, stack, plan.hasChildMatcher, budget, 80)) return false;
+        }
+
+        if (plan.hasDescendantMatcher != null) {
+            if (!hasDescendantMatch(node, stack, plan.hasDescendantMatcher, budget, 400)) return false;
+        }
+
+        return true;
+    }
+
+    private boolean hasImmediateChildMatch(AccessibilityNodeInfo node,
+                                          java.util.ArrayList<UiNode> stack,
+                                          UiSelector.StackMatcher matcher,
+                                          NodeBudget budget,
+                                          int maxChecks) {
+        int childCount = node.getChildCount();
+        int checks = 0;
+        for (int i = 0; i < childCount; i++) {
+            if (checks++ >= maxChecks) break;
+            AccessibilityNodeInfo child = null;
+            try {
+                child = node.getChild(i);
+                if (child == null) continue;
+                String parentId = stack.get(stack.size() - 1).nodeId;
+                String childId = parentId.isEmpty() ? String.valueOf(i) : (parentId + "/" + i);
+                UiNode snap = snapshotNode(child, childId);
+                stack.add(snap);
+                try {
+                    if (matcher.matches(stack)) return true;
+                } finally {
+                    stack.remove(stack.size() - 1);
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (child != null) child.recycle();
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDescendantMatch(AccessibilityNodeInfo node,
+                                      java.util.ArrayList<UiNode> stack,
+                                      UiSelector.StackMatcher matcher,
+                                      NodeBudget budget,
+                                      int maxChecks) {
+        // DFS through subtree (excluding self). Keep a small cap to avoid worst-case blowups.
+        int[] checks = new int[] { 0 };
+        return hasDescendantMatchDfs(node, stack, matcher, checks, maxChecks);
+    }
+
+    private boolean hasDescendantMatchDfs(AccessibilityNodeInfo node,
+                                         java.util.ArrayList<UiNode> stack,
+                                         UiSelector.StackMatcher matcher,
+                                         int[] checks,
+                                         int maxChecks) {
+        if (checks[0] >= maxChecks) return false;
+        int childCount = node.getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            if (checks[0]++ >= maxChecks) return false;
+            AccessibilityNodeInfo child = null;
+            try {
+                child = node.getChild(i);
+                if (child == null) continue;
+                String parentId = stack.get(stack.size() - 1).nodeId;
+                String childId = parentId.isEmpty() ? String.valueOf(i) : (parentId + "/" + i);
+                UiNode snap = snapshotNode(child, childId);
+                stack.add(snap);
+                try {
+                    if (matcher.matches(stack)) return true;
+                    if (hasDescendantMatchDfs(child, stack, matcher, checks, maxChecks)) return true;
+                } finally {
+                    stack.remove(stack.size() - 1);
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (child != null) child.recycle();
+            }
+        }
+        return false;
     }
 
     private UiNode snapshotNode(AccessibilityNodeInfo node, String path) {
