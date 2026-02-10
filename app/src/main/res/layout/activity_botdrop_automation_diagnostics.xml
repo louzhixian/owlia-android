@@ -69,6 +69,16 @@
             android:textAllCaps="false"
             android:background="@drawable/botdrop_button_outline_bg"
             android:textColor="@color/botdrop_accent"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/btn_diag_dump_tree_delayed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dump After 3 Seconds"
+            android:textAllCaps="false"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:textColor="@color/botdrop_accent"
             android:layout_marginBottom="12dp" />
 
         <TextView
@@ -114,4 +124,3 @@
             android:layout_marginBottom="12dp" />
     </LinearLayout>
 </ScrollView>
-
