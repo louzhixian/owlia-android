@@ -1,9 +1,13 @@
 package app.botdrop.automation;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.graphics.Rect;
+import android.graphics.Path;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -13,6 +17,9 @@ import com.termux.shared.logger.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * No-root UI automation bridge based on AccessibilityService.
@@ -31,6 +38,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
     private final Object mEventLock = new Object();
     private long mLastWindowChangedAtMs = 0L;
     private long mLastContentChangedAtMs = 0L;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     public static @Nullable BotDropAccessibilityService getInstance() {
         return sInstance;
@@ -455,15 +463,19 @@ public class BotDropAccessibilityService extends AccessibilityService {
         if (action == null) return false;
         switch (action) {
             case "click":
-                return node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                return gestureClick(node, 120);
             case "longClick":
-                return node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
+                if (node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)) return true;
+                return gestureClick(node, 650);
             case "focus":
                 return node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
             case "scrollForward":
-                return node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                if (node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true;
+                return gestureScroll(node, true, 380);
             case "scrollBackward":
-                return node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+                if (node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return true;
+                return gestureScroll(node, false, 380);
             case "setText":
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return false;
                 if (args == null) return false;
@@ -475,5 +487,94 @@ public class BotDropAccessibilityService extends AccessibilityService {
             default:
                 return false;
         }
+    }
+
+    private boolean gestureClick(AccessibilityNodeInfo node, long durationMs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+
+        Rect r = new Rect();
+        node.getBoundsInScreen(r);
+        if (r.width() <= 1 || r.height() <= 1) return false;
+
+        int x = r.centerX();
+        int y = r.centerY();
+        return dispatchTap(x, y, durationMs, 1200);
+    }
+
+    /**
+     * Scroll by swiping inside the node's bounds. forward=true means swipe up (content moves down).
+     */
+    private boolean gestureScroll(AccessibilityNodeInfo node, boolean forward, long durationMs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+
+        Rect r = new Rect();
+        node.getBoundsInScreen(r);
+        if (r.width() <= 1 || r.height() <= 1) return false;
+
+        // Avoid edges where gesture can be intercepted by system bars.
+        int x = r.centerX();
+        int startY = (int) (r.top + r.height() * 0.75f);
+        int endY = (int) (r.top + r.height() * 0.25f);
+        if (!forward) {
+            int tmp = startY;
+            startY = endY;
+            endY = tmp;
+        }
+
+        return dispatchSwipe(x, startY, x, endY, durationMs, 2000);
+    }
+
+    private boolean dispatchTap(int x, int y, long durationMs, long timeoutMs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+        Path p = new Path();
+        p.moveTo(x, y);
+        return dispatchGestureBlocking(p, durationMs, timeoutMs);
+    }
+
+    private boolean dispatchSwipe(int x1, int y1, int x2, int y2, long durationMs, long timeoutMs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+        Path p = new Path();
+        p.moveTo(x1, y1);
+        p.lineTo(x2, y2);
+        return dispatchGestureBlocking(p, durationMs, timeoutMs);
+    }
+
+    private boolean dispatchGestureBlocking(Path path, long durationMs, long timeoutMs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+
+        CountDownLatch latch = new CountDownLatch(1);
+        final boolean[] ok = new boolean[] { false };
+
+        GestureDescription.StrokeDescription stroke =
+            new GestureDescription.StrokeDescription(path, 0, Math.max(1, durationMs));
+        GestureDescription gesture = new GestureDescription.Builder().addStroke(stroke).build();
+
+        mMainHandler.post(() -> {
+            try {
+                dispatchGesture(gesture, new GestureResultCallback() {
+                    @Override
+                    public void onCompleted(GestureDescription gestureDescription) {
+                        ok[0] = true;
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onCancelled(GestureDescription gestureDescription) {
+                        ok[0] = false;
+                        latch.countDown();
+                    }
+                }, null);
+            } catch (Throwable t) {
+                ok[0] = false;
+                latch.countDown();
+            }
+        });
+
+        try {
+            if (!latch.await(Math.max(1, timeoutMs), TimeUnit.MILLISECONDS)) return false;
+        } catch (InterruptedException ignored) {
+            return false;
+        }
+        return ok[0];
     }
 }

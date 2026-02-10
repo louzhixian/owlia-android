@@ -72,6 +72,7 @@ public class DashboardActivity extends Activity {
     private TextView mAutomationAccessibilityStatus;
     private TextView mAutomationSocketStatus;
     private Button mOpenAccessibilitySettingsButton;
+    private Button mOpenAutomationDiagnosticsButton;
 
     private BotDropService mBotDropService;
     private boolean mBound = false;
@@ -136,6 +137,7 @@ public class DashboardActivity extends Activity {
         mAutomationAccessibilityStatus = findViewById(R.id.automation_accessibility_status);
         mAutomationSocketStatus = findViewById(R.id.automation_socket_status);
         mOpenAccessibilitySettingsButton = findViewById(R.id.btn_open_accessibility_settings);
+        mOpenAutomationDiagnosticsButton = findViewById(R.id.btn_open_automation_diagnostics);
 
         // Setup button listeners
         mStartButton.setOnClickListener(v -> startGateway());
@@ -144,6 +146,7 @@ public class DashboardActivity extends Activity {
         openTerminalButton.setOnClickListener(v -> openTerminal());
         changeModelButton.setOnClickListener(v -> showModelSelector());
         mOpenAccessibilitySettingsButton.setOnClickListener(v -> openAccessibilitySettings());
+        mOpenAutomationDiagnosticsButton.setOnClickListener(v -> openAutomationDiagnostics());
 
         mSshCard = findViewById(R.id.ssh_card);
         mSshInfoText = findViewById(R.id.ssh_info_text);
@@ -229,6 +232,14 @@ public class DashboardActivity extends Activity {
             startActivity(intent);
         } catch (Exception e) {
             Toast.makeText(this, "Unable to open accessibility settings", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openAutomationDiagnostics() {
+        try {
+            startActivity(new Intent(this, AutomationDiagnosticsActivity.class));
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to open diagnostics", Toast.LENGTH_SHORT).show();
         }
     }
 

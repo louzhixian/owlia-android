@@ -26,10 +26,27 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
 
     private static final String LOG_TAG = "UiAutomationSocketServer";
     private static final Object REQUEST_LOCK = new Object();
+    private static final int MAX_HISTORY = 30;
+    private static final Object HISTORY_LOCK = new Object();
+    private static final String[] HISTORY = new String[MAX_HISTORY];
+    private static int sHistoryPos = 0;
 
     @Override
     protected String getLogTag() {
         return LOG_TAG;
+    }
+
+    public static String[] getRecentHistory() {
+        synchronized (HISTORY_LOCK) {
+            String[] out = new String[MAX_HISTORY];
+            // Return newest-first.
+            for (int i = 0; i < MAX_HISTORY; i++) {
+                int idx = (sHistoryPos - 1 - i);
+                while (idx < 0) idx += MAX_HISTORY;
+                out[i] = HISTORY[idx];
+            }
+            return out;
+        }
     }
 
     @Override
@@ -62,9 +79,11 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
                 res = handle(req);
             }
             sendJson(clientSocket, res);
+            recordHistory(raw, res != null ? res.toString() : "null");
         } catch (Throwable t) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Unhandled exception in client handler", t);
             sendJson(clientSocket, jsonErr("EXCEPTION", t.getMessage() != null ? t.getMessage() : "unknown"));
+            recordHistory("(exception)", t.getMessage() != null ? t.getMessage() : "unknown");
         } finally {
             clientSocket.closeClientSocket(true);
         }
@@ -203,5 +222,22 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
             o.put(k, v);
         } catch (Exception ignored) {}
         return o;
+    }
+
+    private static void recordHistory(String req, String res) {
+        String r1 = (req != null) ? req : "";
+        String r2 = (res != null) ? res : "";
+        r1 = truncate(r1, 4096);
+        r2 = truncate(r2, 4096);
+        String entry = System.currentTimeMillis() + "\nREQ: " + r1 + "\nRES: " + r2;
+        synchronized (HISTORY_LOCK) {
+            HISTORY[sHistoryPos] = entry;
+            sHistoryPos = (sHistoryPos + 1) % MAX_HISTORY;
+        }
+    }
+
+    private static String truncate(String s, int max) {
+        if (s.length() <= max) return s;
+        return s.substring(0, max) + "...(truncated)";
     }
 }

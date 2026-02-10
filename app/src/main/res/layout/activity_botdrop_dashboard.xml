@@ -367,6 +367,18 @@
                 android:textColor="@color/botdrop_accent"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp" />
+
+            <Button
+                android:id="@+id/btn_open_automation_diagnostics"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Open Automation Diagnostics"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:textColor="@color/botdrop_accent"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
         </LinearLayout>
 
         <!-- SSH Info Card -->
