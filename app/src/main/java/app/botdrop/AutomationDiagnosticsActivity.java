@@ -51,12 +51,10 @@ public class AutomationDiagnosticsActivity extends Activity {
 
         Button openSettings = findViewById(R.id.btn_diag_open_accessibility_settings);
         Button refresh = findViewById(R.id.btn_diag_refresh);
-        Button dumpTree = findViewById(R.id.btn_diag_dump_tree);
         Button dumpTreeDelayed = findViewById(R.id.btn_diag_dump_tree_delayed);
 
         openSettings.setOnClickListener(v -> openAccessibilitySettings());
         refresh.setOnClickListener(v -> refreshStatus());
-        dumpTree.setOnClickListener(v -> dumpTree());
         dumpTreeDelayed.setOnClickListener(v -> dumpTreeDelayed(3000));
 
         refreshStatus();
