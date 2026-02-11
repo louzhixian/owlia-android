@@ -275,6 +275,12 @@ task downloadBootstraps() {
     }
 }
 
+task auditBootstraps() {
+    doLast {
+        verifyBootstrap("aarch64")
+    }
+}
+
 afterEvaluate {
     android.applicationVariants.all { variant ->
         variant.javaCompileProvider.get().dependsOn(downloadBootstraps)

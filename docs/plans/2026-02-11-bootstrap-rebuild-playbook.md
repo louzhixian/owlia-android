@@ -51,10 +51,22 @@ Use script:
 scripts/audit_bootstrap.sh app/src/main/cpp/bootstrap-aarch64.zip
 ```
 
+Or run Gradle audit directly (no APK build required):
+
+```bash
+./gradlew :app:auditBootstraps
+```
+
 For strict canary verification against a specific bootstrap release:
 
 ```bash
 scripts/verify_bootstrap_canary.sh <bootstrap_base_url> [apt-android-7|apt-android-5]
+```
+
+For before/after comparison of two bootstrap zips:
+
+```bash
+scripts/compare_bootstrap.sh <old_bootstrap.zip> <new_bootstrap.zip>
 ```
 
 It checks:
