@@ -9,13 +9,16 @@ import com.termux.shared.logger.Logger;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class OpenAppOperation {
 
     private static final String LOG_TAG = "OpenAppOperation";
     private static final Map<String, String[]> EXPLICIT_COMPONENT_FALLBACKS = new HashMap<>();
+    private static final Map<String, String[]> PACKAGE_ALTERNATE_FALLBACKS = new HashMap<>();
 
     static {
         EXPLICIT_COMPONENT_FALLBACKS.put("com.tencent.mm", new String[]{
@@ -23,6 +26,15 @@ final class OpenAppOperation {
         });
         EXPLICIT_COMPONENT_FALLBACKS.put("tv.danmaku.bili", new String[]{
             "tv.danmaku.bili/.MainActivityV2"
+        });
+
+        PACKAGE_ALTERNATE_FALLBACKS.put("org.telegram.messenger", new String[]{
+            "org.thunderdog.challegram",   // Telegram X
+            "org.telegram.plus"            // Plus Messenger
+        });
+        PACKAGE_ALTERNATE_FALLBACKS.put("com.discord", new String[]{
+            "com.discord.beta",
+            "com.discord.ptb"
         });
     }
 
@@ -42,8 +54,19 @@ final class OpenAppOperation {
         long startedAt = System.currentTimeMillis();
         long deadline = startedAt + Math.max(1000L, timeoutMs);
 
-        if (!launchPackage(svc, packageName, activityName, componentName)) {
-            return jsonErr("LAUNCH_FAILED", "unable to resolve launcher activity for package: " + packageName);
+        Set<String> candidatePackages = buildCandidatePackages(packageName);
+        String resolvedPackage = null;
+        for (String candidate : candidatePackages) {
+            if (launchPackage(svc, candidate, activityName, componentName)) {
+                resolvedPackage = candidate;
+                break;
+            }
+        }
+        if (resolvedPackage == null) {
+            JSONObject out = jsonErr("LAUNCH_FAILED", "unable to resolve launcher activity for package: " + packageName);
+            putSafe(out, "packageName", packageName);
+            putSafe(out, "candidates", new org.json.JSONArray(candidatePackages));
+            return out;
         }
 
         int confirmClicks = 0;
@@ -53,14 +76,24 @@ final class OpenAppOperation {
             String activePackage = svc.getActivePackageName();
             String observedPackage = svc.getLastObservedPackageName();
             boolean recentlyObserved = svc.isPackageRecentlyObserved(packageName, 8000L);
-            if (packageName.equals(activePackage) || packageName.equals(observedPackage) || recentlyObserved) {
+            boolean activeMatched = activePackage != null && candidatePackages.contains(activePackage);
+            boolean observedMatched = observedPackage != null && candidatePackages.contains(observedPackage);
+            boolean recentlyMatched = false;
+            for (String p : candidatePackages) {
+                if (svc.isPackageRecentlyObserved(p, 8000L)) {
+                    recentlyMatched = true;
+                    break;
+                }
+            }
+            if (activeMatched || observedMatched || recentlyMatched) {
                 JSONObject out = jsonOk();
                 putSafe(out, "packageName", packageName);
+                putSafe(out, "resolvedPackage", resolvedPackage);
                 putSafe(out, "activePackage", activePackage);
                 putSafe(out, "observedPackage", observedPackage);
                 putSafe(out, "matchedBy",
-                    packageName.equals(activePackage) ? "activePackage"
-                        : (packageName.equals(observedPackage) ? "observedPackage" : "recentObservation"));
+                    activeMatched ? "activePackage"
+                        : (observedMatched ? "observedPackage" : "recentObservation"));
                 putSafe(out, "confirmClicks", confirmClicks);
                 putSafe(out, "confirmLabel", lastConfirmLabel);
                 return out;
@@ -88,11 +121,26 @@ final class OpenAppOperation {
 
         JSONObject out = jsonErr("TIMEOUT", "openApp timeout for package: " + packageName);
         putSafe(out, "packageName", packageName);
+        putSafe(out, "resolvedPackage", resolvedPackage);
         putSafe(out, "activePackage", svc.getActivePackageName());
         putSafe(out, "observedPackage", svc.getLastObservedPackageName());
         putSafe(out, "confirmClicks", confirmClicks);
         putSafe(out, "confirmLabel", lastConfirmLabel);
         return out;
+    }
+
+    private static Set<String> buildCandidatePackages(String requestedPackage) {
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        if (requestedPackage != null && !requestedPackage.isEmpty()) {
+            set.add(requestedPackage);
+            String[] alts = PACKAGE_ALTERNATE_FALLBACKS.get(requestedPackage);
+            if (alts != null) {
+                for (String alt : alts) {
+                    if (alt != null && !alt.isEmpty()) set.add(alt);
+                }
+            }
+        }
+        return set;
     }
 
     private static boolean launchPackage(BotDropAccessibilityService svc,

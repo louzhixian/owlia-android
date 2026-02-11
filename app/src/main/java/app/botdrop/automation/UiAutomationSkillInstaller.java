@@ -123,6 +123,8 @@ public final class UiAutomationSkillInstaller {
             "- `botdrop-ui '{\"op\":\"openApp\",\"packageName\":\"com.twitter.android\",\"timeoutMs\":12000}'`\n" +
             "- `botdrop-ui '{\"op\":\"openApp\",\"packageName\":\"com.tencent.mm\",\"activity\":\".ui.LauncherUI\",\"timeoutMs\":12000}'`\n" +
             "- `botdrop-ui '{\"op\":\"openApp\",\"packageName\":\"tv.danmaku.bili\",\"component\":\"tv.danmaku.bili/.MainActivityV2\",\"timeoutMs\":12000}'`\n" +
+            "- `botdrop-ui '{\"op\":\"adb\",\"action\":\"connect\",\"host\":\"localhost:5555\"}'`\n" +
+            "- `botdrop-ui '{\"op\":\"adb\",\"action\":\"openApp\",\"packageName\":\"com.tencent.mm\",\"component\":\"com.tencent.mm/.ui.LauncherUI\"}'`\n" +
             "- `botdrop-ui '{\"op\":\"global\",\"action\":\"home\"}'`\n" +
             "- `botdrop-ui '{\"op\":\"tree\",\"maxNodes\":400}'`\n" +
             "- `botdrop-ui '{\"op\":\"find\",\"selector\":{\"textContains\":\"OK\"},\"mode\":\"first\",\"timeoutMs\":3000}'`\n" +

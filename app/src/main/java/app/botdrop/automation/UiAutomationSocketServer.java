@@ -207,6 +207,8 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
                 if (svc == null) return jsonErr("SERVICE_DISABLED", "accessibility service not connected");
                 return OpenAppOperation.run(svc, req);
             }
+            case "adb":
+                return AdbCommandRunner.handle(req);
             default:
                 return jsonErr("BAD_OP", "unknown op: " + op);
         }
