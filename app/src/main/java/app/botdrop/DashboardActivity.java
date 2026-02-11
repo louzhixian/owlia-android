@@ -33,6 +33,7 @@ import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
 
 import app.botdrop.automation.AutomationControllerService;
+import app.botdrop.automation.BotDropAccessibilityService;
 import app.botdrop.automation.UiAutomationSkillInstaller;
 
 import org.json.JSONObject;
@@ -118,7 +119,7 @@ public class DashboardActivity extends Activity {
         // Start local UI automation controller (unix socket server). Accessibility must still be
         // enabled by the user in system settings; otherwise API calls will return SERVICE_DISABLED.
         startAutomationControllerService();
-        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync();
+        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync(this);
 
         // Initialize views
         mStatusText = findViewById(R.id.status_text);
@@ -226,13 +227,40 @@ public class DashboardActivity extends Activity {
     }
 
     private void openAccessibilitySettings() {
+        ComponentName serviceComponent = new ComponentName(this, BotDropAccessibilityService.class);
+
+        // 1) Try direct service details page.
         try {
-            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception e) {
-            Toast.makeText(this, "Unable to open accessibility settings", Toast.LENGTH_SHORT).show();
-        }
+            Intent detailsIntent = new Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS");
+            detailsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            detailsIntent.putExtra("android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME", serviceComponent);
+            Bundle fragmentArgs = new Bundle();
+            fragmentArgs.putString(":settings:fragment_args_key", serviceComponent.flattenToString());
+            detailsIntent.putExtra(":settings:show_fragment_args", fragmentArgs);
+            if (detailsIntent.resolveActivity(getPackageManager()) != null) {
+                startActivity(detailsIntent);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // 2) Fallback to Accessibility service list page.
+        try {
+            Intent settingsIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(settingsIntent);
+            return;
+        } catch (Exception ignored) {}
+
+        // 3) Last fallback: this app's details page so user can reach permissions/settings quickly.
+        try {
+            Intent appDetailsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            appDetailsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            appDetailsIntent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(appDetailsIntent);
+            return;
+        } catch (Exception ignored) {}
+
+        Toast.makeText(this, "Unable to open accessibility settings", Toast.LENGTH_SHORT).show();
     }
 
     private void openAutomationDiagnostics() {

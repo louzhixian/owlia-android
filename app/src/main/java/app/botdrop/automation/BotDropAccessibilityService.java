@@ -38,6 +38,8 @@ public class BotDropAccessibilityService extends AccessibilityService {
     private final Object mEventLock = new Object();
     private long mLastWindowChangedAtMs = 0L;
     private long mLastContentChangedAtMs = 0L;
+    private volatile String mLastObservedAppPackage = null;
+    private volatile long mLastObservedAppPackageAtMs = 0L;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     public static @Nullable BotDropAccessibilityService getInstance() {
@@ -67,6 +69,13 @@ public class BotDropAccessibilityService extends AccessibilityService {
         int type = event != null ? event.getEventType() : 0;
         long now = System.currentTimeMillis();
         boolean notify = false;
+        if (event != null && event.getPackageName() != null) {
+            String pkg = event.getPackageName().toString();
+            if (!AccessibilityWindowSelector.isLikelyOverlayPackageName(pkg)) {
+                mLastObservedAppPackage = pkg;
+                mLastObservedAppPackageAtMs = now;
+            }
+        }
 
         if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             mLastWindowChangedAtMs = now;
@@ -104,7 +113,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
         JSONObject out = new JSONObject();
         AccessibilityNodeInfo root = null;
         try {
-            root = getRootInActiveWindow();
+            root = obtainBestRootNode();
             if (root == null) {
                 out.put("ok", false);
                 out.put("error", "NO_ACTIVE_WINDOW");
@@ -151,7 +160,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
         JSONObject out = new JSONObject();
         AccessibilityNodeInfo root = null;
         try {
-            root = getRootInActiveWindow();
+            root = obtainBestRootNode();
             if (root == null) {
                 Json.put(out, "ok", false);
                 Json.put(out, "error", "NO_ACTIVE_WINDOW");
@@ -189,7 +198,7 @@ public class BotDropAccessibilityService extends AccessibilityService {
         AccessibilityNodeInfo root = null;
         AccessibilityNodeInfo target = null;
         try {
-            root = getRootInActiveWindow();
+            root = obtainBestRootNode();
             if (root == null) {
                 Json.put(out, "ok", false);
                 Json.put(out, "error", "NO_ACTIVE_WINDOW");
@@ -284,10 +293,33 @@ public class BotDropAccessibilityService extends AccessibilityService {
         }
     }
 
+    public @Nullable String getActivePackageName() {
+        AccessibilityNodeInfo root = null;
+        try {
+            root = obtainBestRootNode();
+            if (root == null || root.getPackageName() == null) return null;
+            return root.getPackageName().toString();
+        } finally {
+            if (root != null) root.recycle();
+        }
+    }
+
+    public @Nullable String getLastObservedPackageName() {
+        return mLastObservedAppPackage;
+    }
+
+    public boolean isPackageRecentlyObserved(String packageName, long withinMs) {
+        if (packageName == null || packageName.isEmpty()) return false;
+        String last = mLastObservedAppPackage;
+        if (!packageName.equals(last)) return false;
+        long age = System.currentTimeMillis() - mLastObservedAppPackageAtMs;
+        return age >= 0 && age <= Math.max(0L, withinMs);
+    }
+
     private boolean existsNow(UiSelector.Plan plan, int maxNodes) {
         AccessibilityNodeInfo root = null;
         try {
-            root = getRootInActiveWindow();
+            root = obtainBestRootNode();
             if (root == null) return false;
             NodeBudget budget = new NodeBudget(maxNodes);
             java.util.ArrayList<UiNode> stack = new java.util.ArrayList<>();
@@ -295,6 +327,10 @@ public class BotDropAccessibilityService extends AccessibilityService {
         } finally {
             if (root != null) root.recycle();
         }
+    }
+
+    private @Nullable AccessibilityNodeInfo obtainBestRootNode() {
+        return AccessibilityWindowSelector.selectBestRoot(this);
     }
 
     private static class NodeBudget {

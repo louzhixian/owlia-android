@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Build;
@@ -14,6 +15,7 @@ import android.provider.Settings;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.net.Uri;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -131,11 +133,37 @@ public class AutomationDiagnosticsActivity extends Activity {
     }
 
     private void openAccessibilitySettings() {
+        ComponentName serviceComponent = new ComponentName(this, BotDropAccessibilityService.class);
+
         try {
-            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
+            Intent detailsIntent = new Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS");
+            detailsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            detailsIntent.putExtra("android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME", serviceComponent);
+            Bundle fragmentArgs = new Bundle();
+            fragmentArgs.putString(":settings:fragment_args_key", serviceComponent.flattenToString());
+            detailsIntent.putExtra(":settings:show_fragment_args", fragmentArgs);
+            if (detailsIntent.resolveActivity(getPackageManager()) != null) {
+                startActivity(detailsIntent);
+                return;
+            }
         } catch (Exception ignored) {}
+
+        try {
+            Intent settingsIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(settingsIntent);
+            return;
+        } catch (Exception ignored) {}
+
+        try {
+            Intent appDetailsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            appDetailsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            appDetailsIntent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(appDetailsIntent);
+            return;
+        } catch (Exception ignored) {}
+
+        Toast.makeText(this, "Unable to open accessibility settings", Toast.LENGTH_SHORT).show();
     }
 
     private void notifyDumpReady(String message) {

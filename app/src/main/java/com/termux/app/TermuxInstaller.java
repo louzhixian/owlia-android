@@ -547,6 +547,98 @@ public final class TermuxInstaller {
                 "    # Install an OpenClaw skill README so the agent knows how to drive the UI.\n" +
                 "    mkdir -p $HOME/.openclaw/skills/botdrop-ui\n" +
                 "    mkdir -p $HOME/.openclaw/agents/main/agent/skills/botdrop-ui\n" +
+                "    cat > $HOME/.openclaw/skills/botdrop-ui/apps-aliases.json <<'BOTDROP_UI_ALIASES'\n" +
+                "{\n" +
+                "  \"version\": 4,\n" +
+                "  \"note\": \"Expanded common app alias mapping (global + China-focused), with optional preferredComponent.\"," +
+                "\n" +
+                "  \"apps\": [\n" +
+                "    {\"package\":\"com.twitter.android\",\"aliases\":[\"x\",\"x app\",\"twitter\",\"tweet\",\"\u63a8\u7279\"]},\n" +
+                "    {\"package\":\"com.android.chrome\",\"aliases\":[\"chrome\",\"google chrome\",\"\u8c37\u6b4c\u6d4f\u89c8\u5668\"]},\n" +
+                "    {\"package\":\"org.mozilla.firefox\",\"aliases\":[\"firefox\",\"\u706b\u72d0\"]},\n" +
+                "    {\"package\":\"com.microsoft.emmx\",\"aliases\":[\"edge\",\"microsoft edge\"]},\n" +
+                "    {\"package\":\"com.brave.browser\",\"aliases\":[\"brave\",\"brave browser\"]},\n" +
+                "    {\"package\":\"com.duckduckgo.mobile.android\",\"aliases\":[\"duckduckgo\",\"ddg\"]},\n" +
+                "    {\"package\":\"com.google.android.googlequicksearchbox\",\"aliases\":[\"google\",\"google app\",\"\u8c37\u6b4c\"]},\n" +
+                "    {\"package\":\"com.google.android.youtube\",\"aliases\":[\"youtube\",\"yt\",\"\u6cb9\u7ba1\"]},\n" +
+                "    {\"package\":\"com.google.android.apps.youtube.music\",\"aliases\":[\"youtube music\",\"yt music\"]},\n" +
+                "    {\"package\":\"com.instagram.android\",\"aliases\":[\"instagram\",\"ig\"]},\n" +
+                "    {\"package\":\"com.zhiliaoapp.musically\",\"aliases\":[\"tiktok\",\"tik tok\",\"douyin international\"]},\n" +
+                "    {\"package\":\"com.ss.android.ugc.aweme\",\"aliases\":[\"douyin\",\"\u6296\u97f3\"]},\n" +
+                "    {\"package\":\"com.xingin.xhs\",\"aliases\":[\"xiaohongshu\",\"xhs\",\"rednote\",\"\u5c0f\u7ea2\u4e66\"]},\n" +
+                "    {\"package\":\"com.kuaishou.nebula\",\"aliases\":[\"kuaishou\",\"\u5feb\u624b\"]},\n" +
+                "    {\"package\":\"tv.danmaku.bili\",\"aliases\":[\"bilibili\",\"bili\",\"\u54d4\u54e9\u54d4\u54e9\"],\"preferredComponent\":\"tv.danmaku.bili/.MainActivityV2\"},\n" +
+                "    {\"package\":\"com.sina.weibo\",\"aliases\":[\"weibo\",\"\u5fae\u535a\"]},\n" +
+                "    {\"package\":\"com.zhihu.android\",\"aliases\":[\"zhihu\",\"\u77e5\u4e4e\"]},\n" +
+                "    {\"package\":\"com.facebook.katana\",\"aliases\":[\"facebook\",\"fb\",\"\u8138\u4e66\"]},\n" +
+                "    {\"package\":\"com.facebook.orca\",\"aliases\":[\"messenger\",\"facebook messenger\"]},\n" +
+                "    {\"package\":\"com.snapchat.android\",\"aliases\":[\"snapchat\",\"snap\"]},\n" +
+                "    {\"package\":\"com.linkedin.android\",\"aliases\":[\"linkedin\"]},\n" +
+                "    {\"package\":\"com.reddit.frontpage\",\"aliases\":[\"reddit\"]},\n" +
+                "    {\"package\":\"com.discord\",\"aliases\":[\"discord\",\"dc\"]},\n" +
+                "    {\"package\":\"org.telegram.messenger\",\"aliases\":[\"telegram\",\"tg\",\"\u98de\u673a\"]},\n" +
+                "    {\"package\":\"org.thoughtcrime.securesms\",\"aliases\":[\"signal\"]},\n" +
+                "    {\"package\":\"com.whatsapp\",\"aliases\":[\"whatsapp\",\"wa\"]},\n" +
+                "    {\"package\":\"com.viber.voip\",\"aliases\":[\"viber\"]},\n" +
+                "    {\"package\":\"com.skype.raider\",\"aliases\":[\"skype\"]},\n" +
+                "    {\"package\":\"com.microsoft.teams\",\"aliases\":[\"teams\",\"microsoft teams\"]},\n" +
+                "    {\"package\":\"us.zoom.videomeetings\",\"aliases\":[\"zoom\"]},\n" +
+                "    {\"package\":\"com.slack\",\"aliases\":[\"slack\"]},\n" +
+                "    {\"package\":\"com.tencent.mm\",\"aliases\":[\"wechat\",\"weixin\",\"wx\",\"\u5fae\u4fe1\"],\"preferredComponent\":\"com.tencent.mm/.ui.LauncherUI\"},\n" +
+                "    {\"package\":\"com.tencent.mobileqq\",\"aliases\":[\"qq\",\"\u817e\u8bafqq\"]},\n" +
+                "    {\"package\":\"com.tencent.wework\",\"aliases\":[\"wecom\",\"wechat work\",\"\u4f01\u4e1a\u5fae\u4fe1\"]},\n" +
+                "    {\"package\":\"com.alibaba.android.rimet\",\"aliases\":[\"dingtalk\",\"\u9489\u9489\"]},\n" +
+                "    {\"package\":\"com.tencent.wemeet.app\",\"aliases\":[\"tencent meeting\",\"\u817e\u8baf\u4f1a\u8bae\"]},\n" +
+                "    {\"package\":\"com.spotify.music\",\"aliases\":[\"spotify\"]},\n" +
+                "    {\"package\":\"com.apple.android.music\",\"aliases\":[\"apple music\"]},\n" +
+                "    {\"package\":\"com.netease.cloudmusic\",\"aliases\":[\"netease music\",\"\u7f51\u6613\u4e91\u97f3\u4e50\"]},\n" +
+                "    {\"package\":\"com.tencent.qqmusic\",\"aliases\":[\"qq music\",\"\u817e\u8baf\u97f3\u4e50\"]},\n" +
+                "    {\"package\":\"com.google.android.apps.maps\",\"aliases\":[\"google maps\",\"maps\"]},\n" +
+                "    {\"package\":\"com.waze\",\"aliases\":[\"waze\"]},\n" +
+                "    {\"package\":\"com.autonavi.minimap\",\"aliases\":[\"amap\",\"gaode\",\"\u9ad8\u5fb7\u5730\u56fe\"]},\n" +
+                "    {\"package\":\"com.baidu.BaiduMap\",\"aliases\":[\"baidu map\",\"\u767e\u5ea6\u5730\u56fe\"]},\n" +
+                "    {\"package\":\"com.ubercab\",\"aliases\":[\"uber\"]},\n" +
+                "    {\"package\":\"com.ubercab.eats\",\"aliases\":[\"uber eats\"]},\n" +
+                "    {\"package\":\"com.lyft.android\",\"aliases\":[\"lyft\"]},\n" +
+                "    {\"package\":\"com.didapinche.booking\",\"aliases\":[\"didi\",\"\u6ef4\u6ef4\"]},\n" +
+                "    {\"package\":\"com.airbnb.android\",\"aliases\":[\"airbnb\"]},\n" +
+                "    {\"package\":\"com.booking\",\"aliases\":[\"booking\",\"booking.com\"]},\n" +
+                "    {\"package\":\"com.expedia.bookings\",\"aliases\":[\"expedia\"]},\n" +
+                "    {\"package\":\"ctrip.android.view\",\"aliases\":[\"ctrip\",\"\u643a\u7a0b\"]},\n" +
+                "    {\"package\":\"com.netflix.mediaclient\",\"aliases\":[\"netflix\",\"\u5948\u98de\"]},\n" +
+                "    {\"package\":\"com.amazon.avod.thirdpartyclient\",\"aliases\":[\"prime video\",\"amazon prime video\"]},\n" +
+                "    {\"package\":\"com.disney.disneyplus\",\"aliases\":[\"disney+\",\"disney plus\"]},\n" +
+                "    {\"package\":\"tv.twitch.android.app\",\"aliases\":[\"twitch\"]},\n" +
+                "    {\"package\":\"com.qiyi.video\",\"aliases\":[\"iqiyi\",\"\u7231\u5947\u827a\"]},\n" +
+                "    {\"package\":\"com.youku.phone\",\"aliases\":[\"youku\",\"\u4f18\u9177\"]},\n" +
+                "    {\"package\":\"com.tencent.qqlive\",\"aliases\":[\"tencent video\",\"\u817e\u8baf\u89c6\u9891\"]},\n" +
+                "    {\"package\":\"com.google.android.gm\",\"aliases\":[\"gmail\"]},\n" +
+                "    {\"package\":\"com.microsoft.office.outlook\",\"aliases\":[\"outlook\"]},\n" +
+                "    {\"package\":\"com.google.android.calendar\",\"aliases\":[\"google calendar\",\"calendar\"]},\n" +
+                "    {\"package\":\"com.google.android.apps.docs\",\"aliases\":[\"google drive\",\"drive\"]},\n" +
+                "    {\"package\":\"com.google.android.apps.photos\",\"aliases\":[\"google photos\",\"photos\"]},\n" +
+                "    {\"package\":\"com.google.android.keep\",\"aliases\":[\"google keep\",\"keep\"]},\n" +
+                "    {\"package\":\"com.amazon.mShop.android.shopping\",\"aliases\":[\"amazon\",\"amazon shopping\"]},\n" +
+                "    {\"package\":\"com.ebay.mobile\",\"aliases\":[\"ebay\"]},\n" +
+                "    {\"package\":\"com.walmart.android\",\"aliases\":[\"walmart\"]},\n" +
+                "    {\"package\":\"com.target.ui\",\"aliases\":[\"target\"]},\n" +
+                "    {\"package\":\"com.dd.doordash\",\"aliases\":[\"doordash\"]},\n" +
+                "    {\"package\":\"com.grubhub.android\",\"aliases\":[\"grubhub\"]},\n" +
+                "    {\"package\":\"com.instacart.client\",\"aliases\":[\"instacart\"]},\n" +
+                "    {\"package\":\"com.taobao.taobao\",\"aliases\":[\"taobao\",\"\u6dd8\u5b9d\"]},\n" +
+                "    {\"package\":\"com.tmall.wireless\",\"aliases\":[\"tmall\",\"\u5929\u732b\"]},\n" +
+                "    {\"package\":\"com.jingdong.app.mall\",\"aliases\":[\"jd\",\"jingdong\",\"\u4eac\u4e1c\"]},\n" +
+                "    {\"package\":\"com.xunmeng.pinduoduo\",\"aliases\":[\"pinduoduo\",\"pdd\",\"\u62fc\u591a\u591a\"]},\n" +
+                "    {\"package\":\"com.suning.mobile.ebuy\",\"aliases\":[\"suning\",\"\u82cf\u5b81\"]},\n" +
+                "    {\"package\":\"com.sankuai.meituan\",\"aliases\":[\"meituan\",\"\u7f8e\u56e2\"]},\n" +
+                "    {\"package\":\"me.ele\",\"aliases\":[\"eleme\",\"\u997f\u4e86\u4e48\"]},\n" +
+                "    {\"package\":\"com.eg.android.AlipayGphone\",\"aliases\":[\"alipay\",\"\u652f\u4ed8\u5b9d\"]},\n" +
+                "    {\"package\":\"com.tencent.mtt\",\"aliases\":[\"qq browser\",\"\u624b\u673aqq\u6d4f\u89c8\u5668\"]},\n" +
+                "    {\"package\":\"com.quark.browser\",\"aliases\":[\"quark\",\"\u5938\u514b\"]},\n" +
+                "    {\"package\":\"com.UCMobile\",\"aliases\":[\"uc browser\",\"uc\"]}\n" +
+                "  ]\n" +
+                "}\n" +
+                "BOTDROP_UI_ALIASES\n" +
                 "    cat > $HOME/.openclaw/skills/botdrop-ui/SKILL.md <<'BOTDROP_UI_SKILL'\n" +
                 "# BotDrop UI Automation (Android)\n" +
                 "\n" +
@@ -559,11 +651,32 @@ public final class TermuxInstaller {
                 "How To Call\n" +
                 "- Use the `botdrop-ui` CLI from the Termux environment.\n" +
                 "- It takes exactly one argument: a JSON string.\n" +
+                "- Do NOT use `adb pair` / `adb connect` for this skill. It is local Accessibility automation.\n" +
+                "\n" +
+                "Open App Strategy (Important)\n" +
+                "- First read alias map: `~/.openclaw/skills/botdrop-ui/apps-aliases.json`.\n" +
+                "- Resolve user app name (English/Chinese aliases) to package.\n" +
+                "- Launch with shell command: `am start -n <package>/<launcherActivity>` when launcher activity is known.\n" +
+                "- If launcher activity is unknown, use monkey fallback: `monkey -p <package> -c android.intent.category.LAUNCHER 1`.\n" +
+                "- After launch, verify using:\n" +
+                "  - `botdrop-ui '{\"op\":\"wait\",\"event\":\"windowChanged\",\"sinceMs\":0,\"timeoutMs\":5000}'`\n" +
+                "  - `botdrop-ui '{\"op\":\"tree\",\"maxNodes\":200}'` and check current package.\n" +
+                "- If alias is missing, fallback to launcher icon flow:\n" +
+                "  - go to launcher screen\n" +
+                "  - find by text/content-desc\n" +
+                "  - click icon and verify package changed\n" +
+                "- If Android shows intent confirmation dialog (e.g. \"BotDrop wants to open X\"):\n" +
+                "  - click `\u59cb\u7ec8\u6253\u5f00` / `Always` first\n" +
+                "  - fallback to `\u4ec5\u6b64\u4e00\u6b21` / `Just once`\n" +
+                "  - OEM prompts like `\u5141\u8bb8` / `\u786e\u8ba4` are auto-handled by `openApp`\n" +
+                "  - then `wait windowChanged` and verify package changed\n" +
                 "\n" +
                 "Examples\n" +
                 "```bash\n" +
                 "botdrop-ui '{\"op\":\"ping\"}'\n" +
+                "botdrop-ui '{\"op\":\"openApp\",\"packageName\":\"com.twitter.android\",\"timeoutMs\":12000}'\n" +
                 "botdrop-ui '{\"op\":\"tree\",\"maxNodes\":400}'\n" +
+                "botdrop-ui '{\"op\":\"global\",\"action\":\"home\"}'\n" +
                 "botdrop-ui '{\"op\":\"find\",\"selector\":{\"resourceId\":\"com.example:id/ok\"},\"mode\":\"first\",\"timeoutMs\":3000}'\n" +
                 "botdrop-ui '{\"op\":\"action\",\"target\":{\"selector\":{\"textContains\":\"OK\"}},\"action\":\"click\",\"timeoutMs\":3000}'\n" +
                 "botdrop-ui '{\"op\":\"action\",\"target\":{\"selector\":{\"resourceId\":\"com.example:id/input\"}},\"action\":\"setText\",\"args\":{\"text\":\"hello\"},\"timeoutMs\":3000}'\n" +
@@ -578,14 +691,18 @@ public final class TermuxInstaller {
                 "Notes\n" +
                 "- Prefer `resourceId` over text when possible.\n" +
                 "- Use `timeoutMs` on `find`/`action` for synchronization.\n" +
+                "- Do not treat `pm list packages` as source of truth for installation status.\n" +
+                "  Android package visibility can hide apps from package queries.\n" +
                 "BOTDROP_UI_SKILL\n" +
                 "    cp -f $HOME/.openclaw/skills/botdrop-ui/SKILL.md $HOME/.openclaw/agents/main/agent/skills/botdrop-ui/SKILL.md 2>/dev/null || true\n" +
+                "    cp -f $HOME/.openclaw/skills/botdrop-ui/apps-aliases.json $HOME/.openclaw/agents/main/agent/skills/botdrop-ui/apps-aliases.json 2>/dev/null || true\n" +
                 "\n" +
                 "    # Also install into OpenClaw's system skills dir for out-of-box loading.\n" +
                 "    SYS_SKILLS_DIR=\"$PREFIX/lib/node_modules/openclaw/skills\"\n" +
                 "    if [ -d \"$PREFIX/lib/node_modules/openclaw\" ]; then\n" +
                 "        mkdir -p \"$SYS_SKILLS_DIR/botdrop-ui\" 2>/dev/null || true\n" +
                 "        cp -f \"$HOME/.openclaw/skills/botdrop-ui/SKILL.md\" \"$SYS_SKILLS_DIR/botdrop-ui/SKILL.md\" 2>/dev/null || true\n" +
+                "        cp -f \"$HOME/.openclaw/skills/botdrop-ui/apps-aliases.json\" \"$SYS_SKILLS_DIR/botdrop-ui/apps-aliases.json\" 2>/dev/null || true\n" +
                 "    fi\n" +
                 "    echo \"BOTDROP_STEP:2:DONE\"\n" +
                 "    touch \"$MARKER\"\n" +

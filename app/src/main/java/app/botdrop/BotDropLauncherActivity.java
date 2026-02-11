@@ -88,7 +88,7 @@ public class BotDropLauncherActivity extends Activity {
         BotDropConfig.sanitizeLegacyConfig();
 
         // Best-effort: keep OpenClaw system skills in sync across upgrades.
-        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync();
+        UiAutomationSkillInstaller.ensureSystemSkillInstalledAsync(this);
 
         // Trigger update check early (results stored for Dashboard to display)
         UpdateChecker.check(this, null);

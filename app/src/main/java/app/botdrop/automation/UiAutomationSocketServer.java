@@ -10,6 +10,7 @@ import com.termux.shared.net.socket.local.LocalSocketManagerClientBase;
 
 import org.json.JSONObject;
 
+
 /**
  * Simple request/response JSON protocol over Termux local socket.
  *
@@ -200,6 +201,11 @@ public class UiAutomationSocketServer extends LocalSocketManagerClientBase {
                     return ok ? jsonOk() : jsonErr("TIMEOUT", "exists timeout");
                 }
                 return jsonErr("BAD_EVENT", "unknown wait event: " + event);
+            }
+            case "openApp": {
+                BotDropAccessibilityService svc = BotDropAccessibilityService.getInstance();
+                if (svc == null) return jsonErr("SERVICE_DISABLED", "accessibility service not connected");
+                return OpenAppOperation.run(svc, req);
             }
             default:
                 return jsonErr("BAD_OP", "unknown op: " + op);
