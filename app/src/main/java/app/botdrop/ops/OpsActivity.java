@@ -84,11 +84,13 @@ public class OpsActivity extends Activity {
         mDiagnoseButton = findViewById(R.id.ops_btn_diagnose);
         mApplyFixesButton = findViewById(R.id.ops_btn_apply_fixes);
         mRestartButton = findViewById(R.id.ops_btn_restart_gateway);
+        Button openChatButton = findViewById(R.id.ops_btn_open_chat);
         Button backButton = findViewById(R.id.ops_btn_back);
 
         mDiagnoseButton.setOnClickListener(v -> runDiagnosis());
         mApplyFixesButton.setOnClickListener(v -> applySuggestedFixes());
         mRestartButton.setOnClickListener(v -> restartGateway());
+        openChatButton.setOnClickListener(v -> openChat());
         backButton.setOnClickListener(v -> finish());
 
         mStatusText.setText("Connecting to BotDrop service...");
@@ -223,6 +225,13 @@ public class OpsActivity extends Activity {
         mApplyFixesButton.setEnabled(!busy && mLastReport != null && !mLastReport.collectSuggestedFixes().isEmpty());
         mRestartButton.setEnabled(!busy);
         findViewById(R.id.ops_loading).setVisibility(busy ? View.VISIBLE : View.GONE);
+    }
+
+    private void openChat() {
+        try {
+            startActivity(new Intent(this, OpsChatActivity.class));
+        } catch (Exception ignored) {
+        }
     }
 
     private void buildOrchestrator() {

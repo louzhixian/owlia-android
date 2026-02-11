@@ -75,6 +75,7 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
   - `fix.preview`
   - `fix.apply`
   - `gateway.restart`
+- Add `OpsChatActivity` for in-app ops conversation.
 
 4. Phase 4
 - Add docs ingestion/cache (FAQ, troubleshooting) for explanation quality.

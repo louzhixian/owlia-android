@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/botdrop_background"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ops Copilot Chat"
+        android:textColor="@color/botdrop_on_background"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/botdrop_card_bg"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/ops_chat_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/botdrop_on_background"
+            android:textSize="13sp" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/ops_chat_btn_diagnose"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:text="Diagnose"
+            android:textAllCaps="false"
+            android:textColor="@color/botdrop_accent" />
+
+        <Button
+            android:id="@+id/ops_chat_btn_back"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:text="Back"
+            android:textAllCaps="false"
+            android:textColor="@color/botdrop_accent" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/ops_chat_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/botdrop_card_bg"
+        android:hint="Ask me to diagnose or fix your setup..."
+        android:padding="10dp"
+        android:textColor="@color/botdrop_on_background"
+        android:textColorHint="@color/botdrop_secondary_text" />
+
+    <Button
+        android:id="@+id/ops_chat_btn_send"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/botdrop_button_bg"
+        android:text="Send"
+        android:textAllCaps="false"
+        android:textColor="#1A1A1A" />
+
+</LinearLayout>

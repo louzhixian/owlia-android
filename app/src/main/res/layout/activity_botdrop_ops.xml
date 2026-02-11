@@ -74,6 +74,16 @@
             android:textAllCaps="false"
             android:textColor="@color/botdrop_accent" />
 
+        <Button
+            android:id="@+id/ops_btn_open_chat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botdrop_button_bg"
+            android:text="Open Copilot Chat"
+            android:textAllCaps="false"
+            android:textColor="#1A1A1A" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
