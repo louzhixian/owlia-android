@@ -35,6 +35,7 @@ import com.termux.shared.termux.TermuxConstants;
 import app.botdrop.automation.AutomationControllerService;
 import app.botdrop.automation.BotDropAccessibilityService;
 import app.botdrop.automation.UiAutomationSkillInstaller;
+import app.botdrop.ops.OpsActivity;
 
 import org.json.JSONObject;
 
@@ -131,6 +132,7 @@ public class DashboardActivity extends Activity {
         mStopButton = findViewById(R.id.btn_stop);
         mRestartButton = findViewById(R.id.btn_restart);
         Button openTerminalButton = findViewById(R.id.btn_open_terminal);
+        Button openOpsAssistantButton = findViewById(R.id.btn_open_ops_assistant);
         mCurrentModelText = findViewById(R.id.current_model_text);
         Button changeModelButton = findViewById(R.id.btn_change_model);
         mGatewayErrorBanner = findViewById(R.id.gateway_error_banner);
@@ -145,6 +147,7 @@ public class DashboardActivity extends Activity {
         mStopButton.setOnClickListener(v -> stopGateway());
         mRestartButton.setOnClickListener(v -> restartGatewayForControl());
         openTerminalButton.setOnClickListener(v -> openTerminal());
+        openOpsAssistantButton.setOnClickListener(v -> openOpsAssistant());
         changeModelButton.setOnClickListener(v -> showModelSelector());
         mOpenAccessibilitySettingsButton.setOnClickListener(v -> openAccessibilitySettings());
         mOpenAutomationDiagnosticsButton.setOnClickListener(v -> openAutomationDiagnostics());
@@ -268,6 +271,14 @@ public class DashboardActivity extends Activity {
             startActivity(new Intent(this, AutomationDiagnosticsActivity.class));
         } catch (Exception e) {
             Toast.makeText(this, "Unable to open diagnostics", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openOpsAssistant() {
+        try {
+            startActivity(new Intent(this, OpsActivity.class));
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to open ops assistant", Toast.LENGTH_SHORT).show();
         }
     }
 
