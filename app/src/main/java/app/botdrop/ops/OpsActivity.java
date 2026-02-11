@@ -6,8 +6,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -32,6 +35,7 @@ public class OpsActivity extends Activity {
     private Button mDiagnoseButton;
     private Button mApplyFixesButton;
     private Button mRestartButton;
+    private Button mToggleBubbleButton;
 
     private BotDropService mService;
     private boolean mBound = false;
@@ -84,6 +88,7 @@ public class OpsActivity extends Activity {
         mDiagnoseButton = findViewById(R.id.ops_btn_diagnose);
         mApplyFixesButton = findViewById(R.id.ops_btn_apply_fixes);
         mRestartButton = findViewById(R.id.ops_btn_restart_gateway);
+        mToggleBubbleButton = findViewById(R.id.ops_btn_toggle_bubble);
         Button openChatButton = findViewById(R.id.ops_btn_open_chat);
         Button backButton = findViewById(R.id.ops_btn_back);
 
@@ -91,6 +96,7 @@ public class OpsActivity extends Activity {
         mApplyFixesButton.setOnClickListener(v -> applySuggestedFixes());
         mRestartButton.setOnClickListener(v -> restartGateway());
         openChatButton.setOnClickListener(v -> openChat());
+        mToggleBubbleButton.setOnClickListener(v -> toggleBubble());
         backButton.setOnClickListener(v -> finish());
 
         mStatusText.setText("Connecting to BotDrop service...");
@@ -103,6 +109,13 @@ public class OpsActivity extends Activity {
         super.onStart();
         Intent intent = new Intent(this, BotDropService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        refreshBubbleButton();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshBubbleButton();
     }
 
     @Override
@@ -232,6 +245,37 @@ public class OpsActivity extends Activity {
             startActivity(new Intent(this, OpsChatActivity.class));
         } catch (Exception ignored) {
         }
+    }
+
+    private void toggleBubble() {
+        if (OpsBubbleService.isRunning()) {
+            stopService(new Intent(this, OpsBubbleService.class));
+            refreshBubbleButton();
+            return;
+        }
+
+        if (!canDrawOverlays()) {
+            Intent intent = new Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName())
+            );
+            startActivity(intent);
+            Toast.makeText(this, "Grant overlay permission, then tap again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        startService(new Intent(this, OpsBubbleService.class));
+        refreshBubbleButton();
+    }
+
+    private boolean canDrawOverlays() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this);
+    }
+
+    private void refreshBubbleButton() {
+        if (mToggleBubbleButton == null) return;
+        boolean running = OpsBubbleService.isRunning();
+        mToggleBubbleButton.setText(running ? "Disable Floating Bubble" : "Enable Floating Bubble");
     }
 
     private void buildOrchestrator() {

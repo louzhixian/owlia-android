@@ -84,6 +84,16 @@
             android:textAllCaps="false"
             android:textColor="#1A1A1A" />
 
+        <Button
+            android:id="@+id/ops_btn_toggle_bubble"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:text="Enable Floating Bubble"
+            android:textAllCaps="false"
+            android:textColor="@color/botdrop_accent" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

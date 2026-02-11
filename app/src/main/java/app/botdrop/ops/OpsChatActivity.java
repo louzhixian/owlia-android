@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.widget.Button;
@@ -24,6 +25,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import app.botdrop.BotDropService;
 
 public class OpsChatActivity extends Activity {
+
+    private static final String PREFS = "ops_chat";
+    private static final String KEY_TRANSCRIPT = "transcript";
+    private static final int MAX_TRANSCRIPT_CHARS = 24000;
 
     private TextView mChatText;
     private EditText mInput;
@@ -78,6 +83,7 @@ public class OpsChatActivity extends Activity {
         mRunDoctorButton.setOnClickListener(v -> runDoctorNow());
         backButton.setOnClickListener(v -> finish());
 
+        loadTranscript();
         append("system", "Connecting...");
     }
 
@@ -90,6 +96,7 @@ public class OpsChatActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
+        persistTranscript();
         if (mBound) {
             try {
                 unbindService(mConnection);
@@ -198,7 +205,12 @@ public class OpsChatActivity extends Activity {
     private void append(String role, String text) {
         String old = mChatText.getText() == null ? "" : mChatText.getText().toString();
         String line = "[" + role + "] " + text + "\n\n";
-        mChatText.setText(old + line);
+        String merged = old + line;
+        if (merged.length() > MAX_TRANSCRIPT_CHARS) {
+            merged = merged.substring(merged.length() - MAX_TRANSCRIPT_CHARS);
+        }
+        mChatText.setText(merged);
+        persistTranscript();
     }
 
     private void setBusy(boolean busy) {
@@ -222,5 +234,19 @@ public class OpsChatActivity extends Activity {
             safeExecutor,
             gatewayController
         );
+    }
+
+    private void loadTranscript() {
+        SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String transcript = prefs.getString(KEY_TRANSCRIPT, "");
+        if (transcript != null && !transcript.isEmpty()) {
+            mChatText.setText(transcript);
+        }
+    }
+
+    private void persistTranscript() {
+        SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String text = mChatText.getText() == null ? "" : mChatText.getText().toString();
+        prefs.edit().putString(KEY_TRANSCRIPT, text).apply();
     }
 }

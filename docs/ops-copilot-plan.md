@@ -79,6 +79,8 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
 
 4. Phase 4
 - Add docs ingestion/cache (FAQ, troubleshooting) for explanation quality.
+- Add optional floating bubble (`OpsBubbleService`) to open chat quickly.
+- Persist chat transcript locally for session continuity.
 
 ## Notes
 

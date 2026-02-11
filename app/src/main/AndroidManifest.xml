@@ -128,6 +128,10 @@
             android:name="app.botdrop.BotDropService"
             android:exported="false" />
 
+        <service
+            android:name="app.botdrop.ops.OpsBubbleService"
+            android:exported="false" />
+
         <!-- BotDrop no-root UI automation -->
         <service
             android:name="app.botdrop.automation.AutomationControllerService"
