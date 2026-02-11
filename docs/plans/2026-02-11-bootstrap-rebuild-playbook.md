@@ -51,6 +51,12 @@ Use script:
 scripts/audit_bootstrap.sh app/src/main/cpp/bootstrap-aarch64.zip
 ```
 
+For strict canary verification against a specific bootstrap release:
+
+```bash
+scripts/verify_bootstrap_canary.sh <bootstrap_base_url> [apt-android-7|apt-android-5]
+```
+
 It checks:
 
 - core files (`bin/pkg`, `etc/apt/sources.list`, `etc/profile`)
@@ -73,6 +79,13 @@ GitHub workflow dispatch now supports passing these values directly:
 - `bootstrap_fail_on_legacy_paths`
 
 So canary release verification can run without editing repository files.
+
+There is also a dedicated strict workflow:
+
+- `.github/workflows/bootstrap-canary-verify.yml`
+- always enforces:
+  - `BOTDROP_BOOTSTRAP_REQUIRE_ADB=1`
+  - `BOTDROP_BOOTSTRAP_FAIL_ON_LEGACY_PATHS=1`
 
 ## Rollout suggestion
 

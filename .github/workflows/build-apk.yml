@@ -49,9 +49,14 @@ jobs:
 
       - name: Download bootstrap archives
         run: |
-          echo "Downloading bootstrap archives from botdrop-packages latest release..."
+          set -e
+          echo "Downloading bootstrap archives..."
           cd app/src/main/cpp
-          url="https://github.com/zhixianio/botdrop-packages/releases/latest/download/bootstrap-aarch64.zip"
+          base_url="${{ github.event.inputs.bootstrap_base_url }}"
+          if [ -z "$base_url" ]; then
+            base_url="https://github.com/zhixianio/botdrop-packages/releases/latest/download"
+          fi
+          url="${base_url}/bootstrap-aarch64.zip"
           echo "Downloading ${url}..."
           curl -fsSL -L -o "bootstrap-aarch64.zip" "$url"
           echo "Downloaded bootstrap-aarch64.zip ($(stat --printf='%s' bootstrap-aarch64.zip) bytes)"
