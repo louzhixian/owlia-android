@@ -27,8 +27,11 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -61,6 +64,19 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR
 public final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
+    private static final String LEGACY_TERMUX_APP_DATA_DIR_PATH = "/data/data/com.termux";
+    private static final String LEGACY_TERMUX_PREFIX_DIR_PATH = "/data/data/com.termux/files/usr";
+    private static final String[] LEGACY_PATH_PATCH_CANDIDATES = new String[] {
+        "bin/pkg",
+        "bin/termux-change-repo",
+        "bin/termux-info",
+        "bin/termux-reset",
+        "bin/login",
+        "etc/profile",
+        "etc/termux-login.sh",
+        "etc/profile.d/init-termux-properties.sh",
+        "etc/motd.sh"
+    };
 
     /** Performs bootstrap setup if necessary. */
     public static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {
@@ -214,6 +230,10 @@ public final class TermuxInstaller {
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
+
+                    // Some upstream bootstrap assets still contain hardcoded legacy com.termux paths.
+                    // Rewrite known script/config files before moving staging -> final prefix.
+                    patchLegacyTermuxPaths(TERMUX_STAGING_PREFIX_DIR);
 
                     Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
 
@@ -391,6 +411,56 @@ public final class TermuxInstaller {
     }
 
     public static native byte[] getZip();
+
+    public static void patchLegacyPathsInInstalledPrefix() {
+        patchLegacyTermuxPaths(TERMUX_PREFIX_DIR);
+    }
+
+    private static void patchLegacyTermuxPaths(File prefixDir) {
+        int patched = 0;
+        for (String relativePath : LEGACY_PATH_PATCH_CANDIDATES) {
+            File file = new File(prefixDir, relativePath);
+            if (!file.isFile()) continue;
+            if (patchLegacyTermuxPathInFile(file)) patched++;
+        }
+        Logger.logInfo(LOG_TAG, "Bootstrap legacy-path patch done. patchedFiles=" + patched);
+    }
+
+    private static boolean patchLegacyTermuxPathInFile(File file) {
+        try {
+            String text = readUtf8File(file);
+            String patched = text
+                .replace(LEGACY_TERMUX_PREFIX_DIR_PATH, TermuxConstants.TERMUX_PREFIX_DIR_PATH)
+                .replace(LEGACY_TERMUX_APP_DATA_DIR_PATH, TermuxConstants.TERMUX_INTERNAL_PRIVATE_APP_DATA_DIR_PATH);
+
+            if (patched.equals(text)) return false;
+
+            writeUtf8File(file, patched);
+            Logger.logInfo(LOG_TAG, "Patched legacy prefix path in " + file.getAbsolutePath());
+            return true;
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to patch legacy path for " + file.getAbsolutePath() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static String readUtf8File(File file) throws Exception {
+        try (FileInputStream in = new FileInputStream(file);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+            return out.toString(StandardCharsets.UTF_8.name());
+        }
+    }
+
+    private static void writeUtf8File(File file, String content) throws Exception {
+        try (FileOutputStream out = new FileOutputStream(file, false)) {
+            out.write(content.getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     /**
      * Creates the BotDrop installation script and environment setup.

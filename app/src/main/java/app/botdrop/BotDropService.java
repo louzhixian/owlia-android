@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 
+import com.termux.app.TermuxInstaller;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
 
@@ -45,6 +46,13 @@ public class BotDropService extends Service {
     public void onCreate() {
         super.onCreate();
         Logger.logDebug(LOG_TAG, "onCreate");
+        // Existing users may already have a bootstrap with legacy com.termux hardcoded paths.
+        // Patch known scripts in-place so pkg/apt continue working under app.botdrop.
+        try {
+            TermuxInstaller.patchLegacyPathsInInstalledPrefix();
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to patch legacy bootstrap scripts: " + e.getMessage());
+        }
     }
 
     @Override

@@ -182,7 +182,9 @@ def downloadBootstrap(String arch) {
         return
     }
 
-    def remoteUrl = "https://github.com/zhixianio/botdrop-packages/releases/latest/download/bootstrap-" + arch + ".zip"
+    def bootstrapBaseUrl = System.getenv("BOTDROP_BOOTSTRAP_BASE_URL") ?:
+        "https://github.com/zhixianio/botdrop-packages/releases/latest/download"
+    def remoteUrl = bootstrapBaseUrl + "/bootstrap-" + arch + ".zip"
     logger.quiet("Downloading " + remoteUrl + " ...")
 
     file.parentFile.mkdirs()
@@ -194,6 +196,66 @@ def downloadBootstrap(String arch) {
     out.close()
 
     logger.quiet("Downloaded bootstrap-" + arch + ".zip successfully")
+}
+
+def verifyBootstrap(String arch) {
+    def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
+    def file = new File(projectDir, localUrl)
+    if (!file.exists() || file.length() == 0) {
+        throw new GradleException("bootstrap-" + arch + ".zip is missing or empty")
+    }
+
+    def strictLegacyPathCheck = (System.getenv("BOTDROP_BOOTSTRAP_FAIL_ON_LEGACY_PATHS") ?: "0") == "1"
+    def requireAdb = (System.getenv("BOTDROP_BOOTSTRAP_REQUIRE_ADB") ?: "0") == "1"
+    def legacyNeedles = ["/data/data/com.termux/files/usr", "/data/data/com.termux"]
+    def probeEntries = [
+        "bin/pkg",
+        "bin/termux-change-repo",
+        "bin/termux-info",
+        "bin/termux-reset",
+        "bin/login",
+        "etc/profile",
+        "etc/termux-login.sh",
+        "etc/profile.d/init-termux-properties.sh",
+        "etc/motd.sh"
+    ]
+
+    def hasAdb = false
+    def legacyHits = []
+
+    def zip = new java.util.zip.ZipFile(file)
+    try {
+        hasAdb = zip.getEntry("bin/adb") != null
+        probeEntries.each { path ->
+            def entry = zip.getEntry(path)
+            if (entry == null) return
+            def text = new String(zip.getInputStream(entry).bytes, "UTF-8")
+            legacyNeedles.each { needle ->
+                if (text.contains(needle)) {
+                    legacyHits.add(path + " -> " + needle)
+                }
+            }
+        }
+    } finally {
+        zip.close()
+    }
+
+    logger.quiet("bootstrap-" + arch + ".zip size=" + file.length() + " bytes, hasAdb=" + hasAdb + ", legacyPathHits=" + legacyHits.size())
+
+    if (!legacyHits.isEmpty()) {
+        def message = "bootstrap-" + arch + ".zip contains legacy com.termux paths in: " + legacyHits.join(", ")
+        if (strictLegacyPathCheck) {
+            throw new GradleException(message + " (strict mode)")
+        } else {
+            logger.warn(message + " (warning only; set BOTDROP_BOOTSTRAP_FAIL_ON_LEGACY_PATHS=1 to fail build)")
+        }
+    }
+
+    if (requireAdb && !hasAdb) {
+        throw new GradleException("bootstrap-" + arch + ".zip missing bin/adb (set BOTDROP_BOOTSTRAP_REQUIRE_ADB=0 to disable)")
+    } else if (!hasAdb) {
+        logger.warn("bootstrap-" + arch + ".zip missing bin/adb (warning only; set BOTDROP_BOOTSTRAP_REQUIRE_ADB=1 to fail build)")
+    }
 }
 
 clean {
@@ -209,6 +271,7 @@ task downloadBootstraps() {
         // Download bootstrap packages from botdrop-packages latest release
         // Supports both apt-android-7 and apt-android-5 variants
         downloadBootstrap("aarch64")
+        verifyBootstrap("aarch64")
     }
 }
 
