@@ -1,6 +1,7 @@
 package app.botdrop.ops;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -129,6 +130,21 @@ public class OpsActivity extends Activity {
             return;
         }
 
+        SafeExecutor.PreviewResult preview = mOrchestrator.previewFixes(fixes);
+        if (!preview.success) {
+            Toast.makeText(this, preview.message, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+            .setTitle("Apply Suggested Fixes?")
+            .setMessage(preview.message)
+            .setPositiveButton("Apply", (dialog, which) -> applyFixesInternal(preview.plannedActions))
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void applyFixesInternal(List<FixAction> fixes) {
         setBusy(true);
         mStatusText.setText("Applying fixes...");
         SafeExecutor.ExecutionResult result = mOrchestrator.applyFixes(fixes);

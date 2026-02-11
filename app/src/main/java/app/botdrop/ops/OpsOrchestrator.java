@@ -33,6 +33,10 @@ public class OpsOrchestrator {
         return safeExecutor.applyFixes(actions);
     }
 
+    public SafeExecutor.PreviewResult previewFixes(List<FixAction> actions) {
+        return safeExecutor.previewFixes(actions);
+    }
+
     public void restartGateway(GatewayController.Callback callback) {
         gatewayController.restart(callback);
     }

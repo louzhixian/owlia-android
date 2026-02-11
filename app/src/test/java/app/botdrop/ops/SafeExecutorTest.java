@@ -58,6 +58,23 @@ public class SafeExecutorTest {
         assertEquals("local", repo.read().getJSONObject("gateway").getString("mode"));
     }
 
+    @Test
+    public void previewFixes_reportsPlannedActions() {
+        InMemoryConfigRepository repo = new InMemoryConfigRepository(new JSONObject());
+        FakeBackupStore backupStore = new FakeBackupStore();
+        SafeExecutor executor = new SafeExecutor(repo, backupStore);
+
+        SafeExecutor.PreviewResult preview = executor.previewFixes(Arrays.asList(
+            FixAction.ENSURE_GATEWAY_OBJECT,
+            FixAction.ENSURE_GATEWAY_MODE_LOCAL,
+            FixAction.ENSURE_GATEWAY_AUTH_TOKEN
+        ));
+
+        assertTrue(preview.success);
+        assertTrue(preview.plannedActions.contains(FixAction.ENSURE_GATEWAY_MODE_LOCAL));
+        assertTrue(preview.message.contains("Planned actions"));
+    }
+
     private static class InMemoryConfigRepository implements ConfigRepository {
         private JSONObject config;
 

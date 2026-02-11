@@ -29,6 +29,18 @@ public class SafeExecutor {
         }
     }
 
+    public static class PreviewResult {
+        public final boolean success;
+        public final String message;
+        public final List<FixAction> plannedActions;
+
+        public PreviewResult(boolean success, String message, List<FixAction> plannedActions) {
+            this.success = success;
+            this.message = message;
+            this.plannedActions = plannedActions;
+        }
+    }
+
     private final ConfigRepository configRepository;
     private final ConfigBackupStore backupStore;
 
@@ -66,6 +78,35 @@ public class SafeExecutor {
         }
 
         return new ExecutionResult(true, txId, backupPath, "Fixes applied", applied);
+    }
+
+    public PreviewResult previewFixes(List<FixAction> actions) {
+        if (actions == null || actions.isEmpty()) {
+            return new PreviewResult(false, "No actions selected", new ArrayList<>());
+        }
+
+        JSONObject current = configRepository.read();
+        if (current == null) current = new JSONObject();
+        JSONObject draft = cloneJson(current);
+
+        List<FixAction> planned = new ArrayList<>();
+        for (FixAction action : actions) {
+            if (applyFix(draft, action)) planned.add(action);
+        }
+
+        if (planned.isEmpty()) {
+            return new PreviewResult(false, "No applicable fixes", planned);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Planned actions:\n");
+        for (FixAction action : planned) {
+            sb.append("- ").append(action.name()).append("\n");
+        }
+        sb.append("\nValidation after apply: ")
+            .append(hasRequiredFields(draft) ? "PASS" : "FAIL");
+
+        return new PreviewResult(true, sb.toString().trim(), planned);
     }
 
     public boolean rollback(String backupPath) {
