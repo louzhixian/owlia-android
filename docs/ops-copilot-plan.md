@@ -41,6 +41,7 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
 - Source priority implemented by `CachedRuleSourceResolver`:
   - runtime schema -> official docs -> local fallback.
 - Rule metadata now includes `agentVersion` to prevent doc/runtime mismatch ambiguity.
+- `OpenClawRuleSourceSyncManager` performs best-effort docs metadata sync (HEAD + ETag/Last-Modified) and refreshes source cache.
 
 2. `botdrop_invariants`
 - BotDrop integration invariants independent of agent internals.

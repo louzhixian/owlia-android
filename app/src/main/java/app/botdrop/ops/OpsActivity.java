@@ -38,6 +38,7 @@ public class OpsActivity extends Activity {
     private OpsOrchestrator mOrchestrator;
     private RuntimeProbeCollector mProbeCollector;
     private DoctorReport mLastReport;
+    private OpenClawRuleSourceSyncManager mRuleSyncManager;
 
     private final ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -46,24 +47,19 @@ public class OpsActivity extends Activity {
             mService = binder.getService();
             mBound = true;
 
-            ConfigRepository repository = new OpenClawConfigRepository();
-            SafeExecutor safeExecutor = new SafeExecutor(repository, new ConfigBackupStore());
-            GatewayController gatewayController = new BotDropGatewayController(mService);
-            String openclawVersion = BotDropService.getOpenclawVersion();
-            RuleSourceResolver sourceResolver = new CachedRuleSourceResolver(getApplicationContext());
-            RuleSource openclawSource = sourceResolver.resolveOpenClawSource(openclawVersion);
-            mOrchestrator = new OpsOrchestrator(
-                repository,
-                new DoctorEngine(Arrays.asList(
-                    new OpenClawAgentRuleProvider(openclawSource, openclawVersion),
-                    new BotDropInvariantRuleProvider(openclawVersion)
-                )),
-                safeExecutor,
-                gatewayController
-            );
+            mRuleSyncManager = new OpenClawRuleSourceSyncManager(getApplicationContext());
+            buildOrchestrator();
             mProbeCollector = new BotDropRuntimeProbeCollector(mService);
             setBusy(false);
             runDiagnosis();
+            mRuleSyncManager.syncOfficialDocsVersionAsync((updated, docsVersion) -> {
+                if (!updated || !mBound) return;
+                runOnUiThread(() -> {
+                    if (!mBound) return;
+                    buildOrchestrator();
+                    runDiagnosis();
+                });
+            });
         }
 
         @Override
@@ -72,6 +68,7 @@ public class OpsActivity extends Activity {
             mService = null;
             mProbeCollector = null;
             mOrchestrator = null;
+            mRuleSyncManager = null;
             setBusy(true);
             mStatusText.setText("Service disconnected");
         }
@@ -226,5 +223,26 @@ public class OpsActivity extends Activity {
         mApplyFixesButton.setEnabled(!busy && mLastReport != null && !mLastReport.collectSuggestedFixes().isEmpty());
         mRestartButton.setEnabled(!busy);
         findViewById(R.id.ops_loading).setVisibility(busy ? View.VISIBLE : View.GONE);
+    }
+
+    private void buildOrchestrator() {
+        ConfigRepository repository = new OpenClawConfigRepository();
+        SafeExecutor safeExecutor = new SafeExecutor(repository, new ConfigBackupStore());
+        GatewayController gatewayController = new BotDropGatewayController(mService);
+
+        String openclawVersion = BotDropService.getOpenclawVersion();
+        RuleSource openclawSource = mRuleSyncManager != null
+            ? mRuleSyncManager.resolveSource(openclawVersion)
+            : new RuleSource(RuleSourceType.LOCAL_FALLBACK, "openclaw-local-v1", "openclaw-agent-rules");
+
+        mOrchestrator = new OpsOrchestrator(
+            repository,
+            new DoctorEngine(Arrays.asList(
+                new OpenClawAgentRuleProvider(openclawSource, openclawVersion),
+                new BotDropInvariantRuleProvider(openclawVersion)
+            )),
+            safeExecutor,
+            gatewayController
+        );
     }
 }
