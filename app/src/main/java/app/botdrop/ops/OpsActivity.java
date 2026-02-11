@@ -17,6 +17,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 
+import java.util.Arrays;
 import java.util.List;
 
 import app.botdrop.BotDropService;
@@ -48,9 +49,15 @@ public class OpsActivity extends Activity {
             ConfigRepository repository = new OpenClawConfigRepository();
             SafeExecutor safeExecutor = new SafeExecutor(repository, new ConfigBackupStore());
             GatewayController gatewayController = new BotDropGatewayController(mService);
+            String openclawVersion = BotDropService.getOpenclawVersion();
+            RuleSourceResolver sourceResolver = new CachedRuleSourceResolver(getApplicationContext());
+            RuleSource openclawSource = sourceResolver.resolveOpenClawSource(openclawVersion);
             mOrchestrator = new OpsOrchestrator(
                 repository,
-                new DoctorEngine(),
+                new DoctorEngine(Arrays.asList(
+                    new OpenClawAgentRuleProvider(openclawSource, openclawVersion),
+                    new BotDropInvariantRuleProvider(openclawVersion)
+                )),
                 safeExecutor,
                 gatewayController
             );
@@ -197,6 +204,7 @@ public class OpsActivity extends Activity {
             sb.append("[").append(issue.severity).append("] ").append(issue.title).append("\n");
             sb.append("Domain: ").append(issue.ruleDomain)
                 .append(" | Agent: ").append(issue.agentType)
+                .append("@").append(issue.agentVersion)
                 .append(" | Source: ").append(issue.ruleSource.sourceType)
                 .append(" (").append(issue.ruleSource.sourceVersion).append(")\n");
             if (issue.detail != null && !issue.detail.trim().isEmpty()) {

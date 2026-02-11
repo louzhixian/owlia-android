@@ -38,7 +38,9 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
 1. `agent_rules`
 - Agent-specific validation rules.
 - Current provider: `OpenClawAgentRuleProvider`.
-- Target source priority: runtime schema -> official docs -> local fallback.
+- Source priority implemented by `CachedRuleSourceResolver`:
+  - runtime schema -> official docs -> local fallback.
+- Rule metadata now includes `agentVersion` to prevent doc/runtime mismatch ambiguity.
 
 2. `botdrop_invariants`
 - BotDrop integration invariants independent of agent internals.

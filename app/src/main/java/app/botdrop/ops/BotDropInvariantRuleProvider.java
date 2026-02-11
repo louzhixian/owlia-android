@@ -12,6 +12,17 @@ public class BotDropInvariantRuleProvider implements DoctorRuleProvider {
 
     private static final RuleSource SOURCE =
         new RuleSource(RuleSourceType.BOTDROP_CODE, "botdrop-ops-v1", "botdrop-invariants");
+    private final String agentVersion;
+
+    public BotDropInvariantRuleProvider() {
+        this("unknown");
+    }
+
+    public BotDropInvariantRuleProvider(String agentVersion) {
+        this.agentVersion = (agentVersion == null || agentVersion.trim().isEmpty())
+            ? "unknown"
+            : agentVersion.trim();
+    }
 
     @Override
     public List<DoctorIssue> collect(JSONObject config, RuntimeProbe runtimeProbe) {
@@ -112,6 +123,7 @@ public class BotDropInvariantRuleProvider implements DoctorRuleProvider {
             fixAction,
             RuleDomain.BOTDROP_INVARIANTS,
             AgentType.OPENCLAW,
+            agentVersion,
             SOURCE
         );
     }

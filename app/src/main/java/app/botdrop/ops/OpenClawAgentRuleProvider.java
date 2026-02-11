@@ -11,8 +11,22 @@ import java.util.List;
  */
 public class OpenClawAgentRuleProvider implements DoctorRuleProvider {
 
-    private static final RuleSource SOURCE =
-        new RuleSource(RuleSourceType.LOCAL_FALLBACK, "openclaw-local-v1", "openclaw-agent-rules");
+    private final RuleSource ruleSource;
+    private final String agentVersion;
+
+    public OpenClawAgentRuleProvider() {
+        this(
+            new RuleSource(RuleSourceType.LOCAL_FALLBACK, "openclaw-local-v1", "openclaw-agent-rules"),
+            "unknown"
+        );
+    }
+
+    public OpenClawAgentRuleProvider(RuleSource ruleSource, String agentVersion) {
+        this.ruleSource = ruleSource;
+        this.agentVersion = (agentVersion == null || agentVersion.trim().isEmpty())
+            ? "unknown"
+            : agentVersion.trim();
+    }
 
     @Override
     public List<DoctorIssue> collect(JSONObject config, RuntimeProbe runtimeProbe) {
@@ -76,7 +90,8 @@ public class OpenClawAgentRuleProvider implements DoctorRuleProvider {
             fixAction,
             RuleDomain.AGENT_RULES,
             AgentType.OPENCLAW,
-            SOURCE
+            agentVersion,
+            ruleSource
         );
     }
 }
