@@ -34,4 +34,12 @@ public class DoctorReport {
         }
         return fixes;
     }
+
+    public List<DoctorIssue> issuesByDomain(RuleDomain domain) {
+        List<DoctorIssue> out = new ArrayList<>();
+        for (DoctorIssue issue : issues) {
+            if (issue.ruleDomain == domain) out.add(issue);
+        }
+        return out;
+    }
 }

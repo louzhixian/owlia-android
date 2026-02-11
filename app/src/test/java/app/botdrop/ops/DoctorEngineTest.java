@@ -3,6 +3,7 @@ package app.botdrop.ops;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -17,6 +18,8 @@ public class DoctorEngineTest {
         assertTrue(hasIssue(report, "CFG_MISSING_GATEWAY"));
         assertTrue(hasIssue(report, "CFG_MISSING_MODEL_PRIMARY"));
         assertTrue(hasIssue(report, "RT_GATEWAY_NOT_RUNNING"));
+        assertTrue(hasIssueFromDomain(report, "CFG_MISSING_MODEL_PRIMARY", RuleDomain.AGENT_RULES));
+        assertTrue(hasIssueFromDomain(report, "RT_GATEWAY_NOT_RUNNING", RuleDomain.BOTDROP_INVARIANTS));
     }
 
     @Test
@@ -37,11 +40,20 @@ public class DoctorEngineTest {
         DoctorReport report = engine.diagnose(cfg, new RuntimeProbe(true, true, ""));
 
         assertFalse(report.hasErrors());
+        assertEquals(0, report.issuesByDomain(RuleDomain.AGENT_RULES).size());
+        assertEquals(0, report.issuesByDomain(RuleDomain.BOTDROP_INVARIANTS).size());
     }
 
     private boolean hasIssue(DoctorReport report, String code) {
         for (DoctorIssue issue : report.issues) {
             if (code.equals(issue.code)) return true;
+        }
+        return false;
+    }
+
+    private boolean hasIssueFromDomain(DoctorReport report, String code, RuleDomain domain) {
+        for (DoctorIssue issue : report.issues) {
+            if (code.equals(issue.code) && issue.ruleDomain == domain) return true;
         }
         return false;
     }

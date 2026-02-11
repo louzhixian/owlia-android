@@ -195,6 +195,10 @@ public class OpsActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         for (DoctorIssue issue : report.issues) {
             sb.append("[").append(issue.severity).append("] ").append(issue.title).append("\n");
+            sb.append("Domain: ").append(issue.ruleDomain)
+                .append(" | Agent: ").append(issue.agentType)
+                .append(" | Source: ").append(issue.ruleSource.sourceType)
+                .append(" (").append(issue.ruleSource.sourceVersion).append(")\n");
             if (issue.detail != null && !issue.detail.trim().isEmpty()) {
                 sb.append(issue.detail).append("\n");
             }

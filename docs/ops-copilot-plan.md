@@ -33,6 +33,18 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
 - `GatewayController`: restart boundary.
 - `OpsOrchestrator`: single entrypoint for UI and later LLM tool-calling.
 
+## Rule Domains
+
+1. `agent_rules`
+- Agent-specific validation rules.
+- Current provider: `OpenClawAgentRuleProvider`.
+- Target source priority: runtime schema -> official docs -> local fallback.
+
+2. `botdrop_invariants`
+- BotDrop integration invariants independent of agent internals.
+- Current provider: `BotDropInvariantRuleProvider`.
+- Source: BotDrop runtime/code assumptions.
+
 ## Safety Model
 
 1. LLM (later phase) proposes actions only.
