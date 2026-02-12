@@ -156,6 +156,10 @@ public class PiAgentBridge {
             pb.redirectOutput(tmpOutput);
 
             process = pb.start();
+            try {
+                process.getOutputStream().close();
+            } catch (Exception ignored) {
+            }
             appendDebug("run", "spawned pid process for provider=" + provider + " model=" + cfg.model);
 
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
