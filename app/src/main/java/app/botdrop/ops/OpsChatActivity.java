@@ -23,8 +23,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import app.botdrop.BotDropService;
+import com.termux.shared.logger.Logger;
 
 public class OpsChatActivity extends Activity {
+    private static final String LOG_TAG = "OpsChatActivity";
 
     private static final String PREFS = "ops_chat";
     private static final String KEY_TRANSCRIPT = "transcript";
@@ -129,28 +131,37 @@ public class OpsChatActivity extends Activity {
         setBusy(true);
 
         new Thread(() -> {
-            ensureAssistantEngine();
-            if (mAssistantEngine == null) {
+            try {
+                ensureAssistantEngine();
+                if (mAssistantEngine == null) {
+                    runOnUiThread(() -> {
+                        append("system", "Assistant runtime is unavailable. Please try again.");
+                        setBusy(false);
+                    });
+                    return;
+                }
+                if (mLastReport == null) {
+                    mLastReport = mOrchestrator.runDoctor(null);
+                }
+
+                OpsPiAgentEngine.AssistantReply reply = mAssistantEngine.reply(msg, mLastReport);
+                String toolResult = executeTool(reply.tool);
+
                 runOnUiThread(() -> {
-                    append("system", "Assistant runtime is unavailable. Please try again.");
+                    append("assistant", reply.text);
+                    if (toolResult != null && !toolResult.trim().isEmpty()) {
+                        append("tool", toolResult);
+                    }
                     setBusy(false);
                 });
-                return;
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "sendMessage failed: " + e.getMessage());
+                runOnUiThread(() -> {
+                    append("system", "Assistant failed: " + e.getClass().getSimpleName()
+                        + (e.getMessage() == null ? "" : (": " + e.getMessage())));
+                    setBusy(false);
+                });
             }
-            if (mLastReport == null) {
-                mLastReport = mOrchestrator.runDoctor(null);
-            }
-
-            OpsPiAgentEngine.AssistantReply reply = mAssistantEngine.reply(msg, mLastReport);
-            String toolResult = executeTool(reply.tool);
-
-            runOnUiThread(() -> {
-                append("assistant", reply.text);
-                if (toolResult != null && !toolResult.trim().isEmpty()) {
-                    append("tool", toolResult);
-                }
-                setBusy(false);
-            });
         }).start();
     }
 

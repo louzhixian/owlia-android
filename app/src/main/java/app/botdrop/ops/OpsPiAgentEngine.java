@@ -52,10 +52,14 @@ public class OpsPiAgentEngine {
             sb.append("- none\n");
         } else {
             for (DoctorIssue issue : report.issues) {
+                String sourceType = "unknown";
+                if (issue.ruleSource != null && issue.ruleSource.sourceType != null) {
+                    sourceType = issue.ruleSource.sourceType.name();
+                }
                 sb.append("- ").append(issue.code)
                     .append(" [").append(issue.severity).append("]")
                     .append(" domain=").append(issue.ruleDomain)
-                    .append(" source=").append(issue.ruleSource.sourceType)
+                    .append(" source=").append(sourceType)
                     .append("\n");
             }
         }
