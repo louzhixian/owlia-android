@@ -29,7 +29,7 @@ public class OpsAssistantEngine {
         OpsLlmConfig cfg = credentialResolver.resolvePrimaryConfig();
         if (cfg == null || !cfg.isValid()) {
             return new AssistantReply(
-                "LLM is not available. Configure a supported provider key (Anthropic/OpenAI) first.",
+                "LLM is not available. Configure a supported provider key (Anthropic/OpenAI/OpenRouter) first.",
                 "none"
             );
         }

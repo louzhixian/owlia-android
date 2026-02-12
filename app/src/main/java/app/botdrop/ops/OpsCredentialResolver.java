@@ -7,7 +7,9 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileReader;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import app.botdrop.BotDropConfig;
 
@@ -16,6 +18,8 @@ public class OpsCredentialResolver {
     private static final String LOG_TAG = "OpsCredentialResolver";
     private static final String AUTH_PROFILES_FILE =
         TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/agents/main/agent/auth-profiles.json";
+    private static final List<String> SUPPORTED_PROVIDERS =
+        Arrays.asList("anthropic", "openai", "openrouter");
 
     public OpsLlmConfig resolvePrimaryConfig() {
         try {
@@ -23,12 +27,15 @@ public class OpsCredentialResolver {
             String primaryModel = readPrimaryModel(config);
             String provider = parseProvider(primaryModel);
             String model = parseModel(primaryModel);
-            if (provider == null || model == null) return null;
+            if (provider != null && model != null && isProviderSupported(provider)) {
+                String key = readApiKey(provider, model);
+                if (key != null && !key.trim().isEmpty()) {
+                    return new OpsLlmConfig(provider, model, key);
+                }
+            }
 
-            String key = readApiKey(provider, model);
-            if (key == null || key.trim().isEmpty()) return null;
-
-            return new OpsLlmConfig(provider, model, key);
+            // Fallback: if primary provider is unsupported/missing key, pick any supported provider key.
+            return resolveFallbackConfig();
         } catch (Exception e) {
             Logger.logWarn(LOG_TAG, "Failed to resolve primary config: " + e.getMessage());
             return null;
@@ -95,5 +102,32 @@ public class OpsCredentialResolver {
             Logger.logWarn(LOG_TAG, "Failed reading auth profiles: " + e.getMessage());
         }
         return null;
+    }
+
+    private OpsLlmConfig resolveFallbackConfig() {
+        for (String provider : SUPPORTED_PROVIDERS) {
+            String model = defaultModelForProvider(provider);
+            String key = readApiKey(provider, model);
+            if (key == null || key.trim().isEmpty()) continue;
+            return new OpsLlmConfig(provider, model, key);
+        }
+        return null;
+    }
+
+    private String defaultModelForProvider(String provider) {
+        switch (provider) {
+            case "anthropic":
+                return "claude-sonnet-4-5";
+            case "openai":
+                return "gpt-4o-mini";
+            case "openrouter":
+                return "openai/gpt-4o-mini";
+            default:
+                return "default";
+        }
+    }
+
+    private boolean isProviderSupported(String provider) {
+        return SUPPORTED_PROVIDERS.contains(provider);
     }
 }

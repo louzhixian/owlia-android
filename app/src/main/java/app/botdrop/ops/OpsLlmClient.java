@@ -38,7 +38,21 @@ public class OpsLlmClient {
             if ("anthropic".equals(cfg.provider)) {
                 return askAnthropic(cfg, systemPrompt, userPrompt);
             } else if ("openai".equals(cfg.provider)) {
-                return askOpenAi(cfg, systemPrompt, userPrompt);
+                return askOpenAiCompatible(
+                    "https://api.openai.com/v1/chat/completions",
+                    cfg,
+                    systemPrompt,
+                    userPrompt,
+                    false
+                );
+            } else if ("openrouter".equals(cfg.provider)) {
+                return askOpenAiCompatible(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    cfg,
+                    systemPrompt,
+                    userPrompt,
+                    true
+                );
             } else {
                 return new LlmResponse(false, null, "Provider not supported yet: " + cfg.provider);
             }
@@ -86,14 +100,19 @@ public class OpsLlmClient {
         return new LlmResponse(true, text, null);
     }
 
-    private LlmResponse askOpenAi(OpsLlmConfig cfg, String systemPrompt, String userPrompt) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL("https://api.openai.com/v1/chat/completions").openConnection();
+    private LlmResponse askOpenAiCompatible(String endpoint, OpsLlmConfig cfg, String systemPrompt,
+                                            String userPrompt, boolean openRouterHeaders) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
         conn.setRequestMethod("POST");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Authorization", "Bearer " + cfg.apiKey);
+        if (openRouterHeaders) {
+            conn.setRequestProperty("HTTP-Referer", "https://app.botdrop");
+            conn.setRequestProperty("X-Title", "BotDrop Ops Assistant");
+        }
 
         JSONObject body = new JSONObject();
         body.put("model", cfg.model);
@@ -110,7 +129,8 @@ public class OpsLlmClient {
         int code = conn.getResponseCode();
         String response = readResponse(conn, code < 400);
         if (code < 200 || code >= 300) {
-            return new LlmResponse(false, null, "OpenAI HTTP " + code + ": " + response);
+            String label = openRouterHeaders ? "OpenRouter" : "OpenAI";
+            return new LlmResponse(false, null, label + " HTTP " + code + ": " + response);
         }
 
         JSONObject json = new JSONObject(response);
