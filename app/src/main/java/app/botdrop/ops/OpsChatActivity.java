@@ -43,7 +43,10 @@ public class OpsChatActivity extends Activity {
         mSendButton.setOnClickListener(v -> sendMessage());
         backButton.setOnClickListener(v -> finish());
 
-        mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(new OpsCredentialResolver()));
+        mAssistantEngine = new OpsPiAgentEngine(
+            new PiAgentBridge(new OpsCredentialResolver()),
+            new OpsKnowledgeBase()
+        );
 
         loadTranscript();
         append("system", "Pi chat ready.");
