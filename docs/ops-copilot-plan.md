@@ -70,7 +70,7 @@ Provide an in-app assistant that helps users configure and repair BotDrop/OpenCl
   - Apply + restart + recheck
 
 3. Phase 3
-- Add LLM copilot layer that calls only internal tools:
+- Add pi-agent copilot layer (single agent module) that calls only internal tools:
   - `doctor.run`
   - `fix.preview`
   - `fix.apply`

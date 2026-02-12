@@ -40,7 +40,7 @@ public class OpsChatActivity extends Activity {
     private OpsOrchestrator mOrchestrator;
     private RuntimeProbeCollector mProbeCollector;
     private OpenClawRuleSourceSyncManager mRuleSyncManager;
-    private OpsAssistantEngine mAssistantEngine;
+    private OpsPiAgentEngine mAssistantEngine;
     private DoctorReport mLastReport;
 
     private final ServiceConnection mConnection = new ServiceConnection() {
@@ -52,7 +52,7 @@ public class OpsChatActivity extends Activity {
             mRuleSyncManager = new OpenClawRuleSourceSyncManager(getApplicationContext());
             buildOrchestrator();
             mProbeCollector = new BotDropRuntimeProbeCollector(mService);
-            mAssistantEngine = new OpsAssistantEngine(new OpsLlmClient(), new OpsCredentialResolver());
+            mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(mService, new OpsCredentialResolver()));
             append("system", "Connected. Ask what to configure/fix, or tap Diagnose.");
             runDoctorNow();
         }
@@ -118,7 +118,7 @@ public class OpsChatActivity extends Activity {
                 mLastReport = mOrchestrator.runDoctor(null);
             }
 
-            OpsAssistantEngine.AssistantReply reply = mAssistantEngine.reply(msg, mLastReport);
+            OpsPiAgentEngine.AssistantReply reply = mAssistantEngine.reply(msg, mLastReport);
             String toolResult = executeTool(reply.tool);
 
             runOnUiThread(() -> {

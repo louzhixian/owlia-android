@@ -3,9 +3,9 @@ package app.botdrop.ops;
 import org.json.JSONObject;
 
 /**
- * LLM-first assistant with strict tool allowlist.
+ * Pi-agent-backed assistant planner.
  */
-public class OpsAssistantEngine {
+public class OpsPiAgentEngine {
 
     public static class AssistantReply {
         public final String text;
@@ -17,33 +17,24 @@ public class OpsAssistantEngine {
         }
     }
 
-    private final OpsLlmClient llmClient;
-    private final OpsCredentialResolver credentialResolver;
+    private final PiAgentBridge bridge;
 
-    public OpsAssistantEngine(OpsLlmClient llmClient, OpsCredentialResolver credentialResolver) {
-        this.llmClient = llmClient;
-        this.credentialResolver = credentialResolver;
+    public OpsPiAgentEngine(PiAgentBridge bridge) {
+        this.bridge = bridge;
     }
 
     public AssistantReply reply(String userMessage, DoctorReport report) {
-        OpsLlmConfig cfg = credentialResolver.resolvePrimaryConfig();
-        if (cfg == null || !cfg.isValid()) {
-            return new AssistantReply(
-                "LLM is not available. Configure a supported provider key (Anthropic/OpenAI/OpenRouter) first.",
-                "none"
-            );
-        }
-
         String system = buildSystemPrompt();
         String user = buildUserPrompt(userMessage, report);
-        OpsLlmClient.LlmResponse response = llmClient.ask(cfg, system, user);
-        if (!response.success || response.text == null || response.text.trim().isEmpty()) {
-            return new AssistantReply("LLM request failed: " + response.error, "none");
+        PiAgentBridge.PiAgentResult result = bridge.ask(system, user);
+
+        if (!result.success || result.text == null || result.text.trim().isEmpty()) {
+            return new AssistantReply("Pi-agent request failed: " + result.error, "none");
         }
 
-        AssistantReply parsed = parseJsonReply(response.text);
+        AssistantReply parsed = parseJsonReply(result.text);
         if (parsed != null) return parsed;
-        return new AssistantReply(response.text.trim(), "none");
+        return new AssistantReply(result.text.trim(), "none");
     }
 
     private String buildSystemPrompt() {

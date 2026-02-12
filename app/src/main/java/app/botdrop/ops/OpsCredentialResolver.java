@@ -7,9 +7,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileReader;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 
 import app.botdrop.BotDropConfig;
 
@@ -18,8 +16,6 @@ public class OpsCredentialResolver {
     private static final String LOG_TAG = "OpsCredentialResolver";
     private static final String AUTH_PROFILES_FILE =
         TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/agents/main/agent/auth-profiles.json";
-    private static final List<String> SUPPORTED_PROVIDERS =
-        Arrays.asList("anthropic", "openai", "openrouter");
 
     public OpsLlmConfig resolvePrimaryConfig() {
         try {
@@ -27,7 +23,7 @@ public class OpsCredentialResolver {
             String primaryModel = readPrimaryModel(config);
             String provider = parseProvider(primaryModel);
             String model = parseModel(primaryModel);
-            if (provider != null && model != null && isProviderSupported(provider)) {
+            if (provider != null && model != null) {
                 String key = readApiKey(provider, model);
                 if (key != null && !key.trim().isEmpty()) {
                     return new OpsLlmConfig(provider, model, key);
@@ -105,29 +101,33 @@ public class OpsCredentialResolver {
     }
 
     private OpsLlmConfig resolveFallbackConfig() {
-        for (String provider : SUPPORTED_PROVIDERS) {
-            String model = defaultModelForProvider(provider);
-            String key = readApiKey(provider, model);
-            if (key == null || key.trim().isEmpty()) continue;
-            return new OpsLlmConfig(provider, model, key);
+        File f = new File(AUTH_PROFILES_FILE);
+        if (!f.exists()) return null;
+
+        try (FileReader reader = new FileReader(f)) {
+            StringBuilder sb = new StringBuilder();
+            char[] buffer = new char[1024];
+            int read;
+            while ((read = reader.read(buffer)) != -1) sb.append(buffer, 0, read);
+
+            JSONObject root = new JSONObject(sb.toString());
+            JSONObject profiles = root.optJSONObject("profiles");
+            if (profiles == null) return null;
+
+            Iterator<String> ids = profiles.keys();
+            while (ids.hasNext()) {
+                String id = ids.next();
+                JSONObject p = profiles.optJSONObject(id);
+                if (p == null) continue;
+                String provider = p.optString("provider", "").trim();
+                String model = p.optString("model", "").trim();
+                String key = p.optString("key", "").trim();
+                if (provider.isEmpty() || model.isEmpty() || key.isEmpty()) continue;
+                return new OpsLlmConfig(provider, model, key);
+            }
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed fallback provider scan: " + e.getMessage());
         }
         return null;
-    }
-
-    private String defaultModelForProvider(String provider) {
-        switch (provider) {
-            case "anthropic":
-                return "claude-sonnet-4-5";
-            case "openai":
-                return "gpt-4o-mini";
-            case "openrouter":
-                return "openai/gpt-4o-mini";
-            default:
-                return "default";
-        }
-    }
-
-    private boolean isProviderSupported(String provider) {
-        return SUPPORTED_PROVIDERS.contains(provider);
     }
 }
