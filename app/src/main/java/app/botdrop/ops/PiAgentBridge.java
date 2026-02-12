@@ -110,9 +110,13 @@ public class PiAgentBridge {
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
+                String partial = readOutput(tmpOutput);
+                if (partial.length() > 800) {
+                    partial = partial.substring(0, 800);
+                }
                 return new CommandResult(
                     false,
-                    readOutput(tmpOutput),
+                    partial,
                     "pi command timed out after " + timeoutSeconds + " seconds",
                     -1
                 );
@@ -164,6 +168,7 @@ public class PiAgentBridge {
             + "fi\n"
             + "PI_CODING_AGENT_DIR=\"$HOME/.botdrop/pi-agent\" "
             + "\"$PI_NODE\" \"$PI_BIN\" -p --mode json --no-session --no-tools "
+            + "--thinking off "
             + "--provider '" + escapedProvider + "' --model '" + escapedModel + "' --api-key '" + escapedKey + "' "
             + "--system-prompt '" + escapedSystem + "' '" + escapedUser + "'\n";
     }

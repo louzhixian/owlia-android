@@ -125,11 +125,7 @@ public class OpsChatActivity extends Activity {
                     });
                     return;
                 }
-                if (mLastReport == null && mOrchestrator != null) {
-                    mLastReport = mOrchestrator.runDoctor(null);
-                }
-
-                OpsPiAgentEngine.AssistantReply reply = mAssistantEngine.reply(msg, mLastReport);
+                OpsPiAgentEngine.AssistantReply reply = mAssistantEngine.reply(msg, null);
                 String toolResult = executeTool(reply.tool);
 
                 runOnUiThread(() -> {
