@@ -86,12 +86,14 @@ public class PiAgentBridge {
         String escapedKey = shellEscape(cfg.apiKey);
 
         return ""
-            + "if ! command -v pi >/dev/null 2>&1; then\n"
+            + "PI_BIN=\"$(command -v pi 2>/dev/null || true)\"\n"
+            + "PI_NODE=\"$(command -v node 2>/dev/null || true)\"\n"
+            + "if [ -z \"$PI_BIN\" ] || [ -z \"$PI_NODE\" ]; then\n"
             + "  echo '{\"type\":\"assistant_message\",\"text\":\"pi runtime is not installed in bootstrap. Please install @mariozechner/pi-coding-agent first.\"}'\n"
             + "  exit 0\n"
             + "fi\n"
             + "PI_CODING_AGENT_DIR=\"$HOME/.botdrop/pi-agent\" "
-            + "pi -p --mode json --no-session --no-tools "
+            + "\"$PI_NODE\" \"$PI_BIN\" -p --mode json --no-session --no-tools "
             + "--provider '" + escapedProvider + "' --model '" + escapedModel + "' --api-key '" + escapedKey + "' "
             + "--system-prompt '" + escapedSystem + "' '" + escapedUser + "'\n";
     }
