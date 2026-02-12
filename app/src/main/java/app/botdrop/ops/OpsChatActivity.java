@@ -42,6 +42,7 @@ public class OpsChatActivity extends Activity {
     private OpenClawRuleSourceSyncManager mRuleSyncManager;
     private OpsPiAgentEngine mAssistantEngine;
     private DoctorReport mLastReport;
+    private PiAgentInstaller mPiAgentInstaller;
 
     private final ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -52,9 +53,22 @@ public class OpsChatActivity extends Activity {
             mRuleSyncManager = new OpenClawRuleSourceSyncManager(getApplicationContext());
             buildOrchestrator();
             mProbeCollector = new BotDropRuntimeProbeCollector(mService);
-            mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(mService, new OpsCredentialResolver()));
-            append("system", "Connected. Ask what to configure/fix, or tap Diagnose.");
-            runDoctorNow();
+            mPiAgentInstaller = new PiAgentInstaller(mService);
+            setBusy(true);
+            append("system", "Connected. Preparing assistant runtime...");
+            mPiAgentInstaller.ensureInstalled((success, message) -> runOnUiThread(() -> {
+                if (!mBound) return;
+                if (!success) {
+                    append("system", "Failed to prepare pi-agent: " + message);
+                    append("system", "Tap Send to retry after network stabilizes.");
+                    setBusy(false);
+                    return;
+                }
+                mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(mService, new OpsCredentialResolver()));
+                append("system", "Assistant runtime ready.");
+                setBusy(false);
+                runDoctorNow();
+            }));
         }
 
         @Override
@@ -64,6 +78,7 @@ public class OpsChatActivity extends Activity {
             mOrchestrator = null;
             mProbeCollector = null;
             mAssistantEngine = null;
+            mPiAgentInstaller = null;
             append("system", "Service disconnected.");
         }
     };
@@ -108,12 +123,20 @@ public class OpsChatActivity extends Activity {
 
     private void sendMessage() {
         String msg = mInput.getText().toString().trim();
-        if (msg.isEmpty() || !mBound || mOrchestrator == null || mAssistantEngine == null) return;
+        if (msg.isEmpty() || !mBound || mOrchestrator == null) return;
         mInput.setText("");
         append("you", msg);
         setBusy(true);
 
         new Thread(() -> {
+            ensureAssistantEngine();
+            if (mAssistantEngine == null) {
+                runOnUiThread(() -> {
+                    append("system", "Assistant runtime is unavailable. Please try again.");
+                    setBusy(false);
+                });
+                return;
+            }
             if (mLastReport == null) {
                 mLastReport = mOrchestrator.runDoctor(null);
             }
@@ -216,6 +239,22 @@ public class OpsChatActivity extends Activity {
     private void setBusy(boolean busy) {
         mSendButton.setEnabled(!busy);
         mRunDoctorButton.setEnabled(!busy);
+    }
+
+    private void ensureAssistantEngine() {
+        if (mAssistantEngine != null) return;
+        if (mPiAgentInstaller == null) return;
+        CountDownLatch latch = new CountDownLatch(1);
+        mPiAgentInstaller.ensureInstalled((success, message) -> {
+            if (success && mService != null) {
+                mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(mService, new OpsCredentialResolver()));
+            }
+            latch.countDown();
+        });
+        try {
+            latch.await(75, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+        }
     }
 
     private void buildOrchestrator() {
