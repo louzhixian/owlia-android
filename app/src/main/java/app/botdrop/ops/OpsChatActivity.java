@@ -48,7 +48,8 @@ public class OpsChatActivity extends Activity {
             new OpsKnowledgeBase()
         );
 
-        loadTranscript();
+        clearTranscript();
+        mChatText.setText("");
         append("system", "Pi chat ready.");
     }
 
@@ -99,12 +100,9 @@ public class OpsChatActivity extends Activity {
         mSendButton.setEnabled(!busy);
     }
 
-    private void loadTranscript() {
+    private void clearTranscript() {
         SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String transcript = prefs.getString(KEY_TRANSCRIPT, "");
-        if (transcript != null && !transcript.isEmpty()) {
-            mChatText.setText(transcript);
-        }
+        prefs.edit().remove(KEY_TRANSCRIPT).apply();
     }
 
     private void persistTranscript() {
