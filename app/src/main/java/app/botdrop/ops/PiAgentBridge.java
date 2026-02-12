@@ -55,7 +55,7 @@ public class PiAgentBridge {
         }
 
         String cmd = buildCommand(cfg, systemPrompt, userPrompt);
-        CommandResult result = runPiCommand(cmd, 150);
+        CommandResult result = runPiCommand(cmd, 60);
         if (!result.success) {
             String stderr = result.stderr == null ? "" : result.stderr.trim();
             String stdout = result.stdout == null ? "" : result.stdout.trim();

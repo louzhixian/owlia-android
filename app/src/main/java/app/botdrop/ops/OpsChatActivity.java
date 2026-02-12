@@ -63,7 +63,7 @@ public class OpsChatActivity extends Activity {
             mService = null;
             mOrchestrator = null;
             mProbeCollector = null;
-            append("system", "Core service disconnected. Chat is still available; diagnose/fix tools are paused.");
+            append("system", "Core service disconnected. Chat stays online; diagnose/fix tools are paused.");
         }
     };
 
@@ -253,9 +253,13 @@ public class OpsChatActivity extends Activity {
             }
             latch.countDown();
         });
+        boolean completed = false;
         try {
-            latch.await(35, TimeUnit.SECONDS);
+            completed = latch.await(12, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
+        }
+        if (!completed) {
+            Logger.logWarn(LOG_TAG, "ensureAssistantEngine timeout after 12s");
         }
     }
 
