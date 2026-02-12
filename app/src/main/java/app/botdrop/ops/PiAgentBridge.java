@@ -6,9 +6,10 @@ import org.json.JSONArray;
 import com.termux.shared.termux.TermuxConstants;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,8 +55,7 @@ public class PiAgentBridge {
             return new PiAgentResult(false, null, "No usable provider key/model found in auth profiles");
         }
 
-        String cmd = buildCommand(cfg, systemPrompt, userPrompt);
-        CommandResult result = runPiCommand(cmd, 20);
+        CommandResult result = runPiCommand(cfg, systemPrompt, userPrompt, 20);
         if (!result.success) {
             String stderr = result.stderr == null ? "" : result.stderr.trim();
             String stdout = result.stdout == null ? "" : result.stdout.trim();
@@ -72,36 +72,56 @@ public class PiAgentBridge {
         return new PiAgentResult(true, parsed, null);
     }
 
-    private CommandResult runPiCommand(String command, int timeoutSeconds) {
+    private CommandResult runPiCommand(OpsLlmConfig cfg, String systemPrompt, String userPrompt, int timeoutSeconds) {
         String stdout = "";
         int exitCode = -1;
         Process process = null;
-        File tmpScript = null;
         File tmpOutput = null;
 
         try {
+            String provider = mapProviderName(cfg.provider);
+            if (provider == null) {
+                return new CommandResult(false, "", "Unsupported provider for assistant runtime.", -1);
+            }
+
+            String piNodePath = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/node";
+            String piBinPath = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/pi";
+            if (!new File(piNodePath).exists() || !new File(piBinPath).exists()) {
+                return new CommandResult(false, "", "pi runtime is not installed in bootstrap.", -1);
+            }
+
             File tmpDir = new File(TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
             if (!tmpDir.exists()) tmpDir.mkdirs();
-            tmpScript = new File(tmpDir, "pi_" + System.currentTimeMillis() + ".sh");
             tmpOutput = new File(tmpDir, "pi_" + System.currentTimeMillis() + ".out");
 
-            try (FileWriter fw = new FileWriter(tmpScript)) {
-                fw.write("#!" + TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash\n");
-                fw.write(command);
-                fw.write("\n");
-            }
-            tmpScript.setExecutable(true);
+            List<String> argv = new ArrayList<>();
+            argv.add(piNodePath);
+            argv.add(piBinPath);
+            argv.add("-p");
+            argv.add("--mode");
+            argv.add("json");
+            argv.add("--no-session");
+            argv.add("--no-tools");
+            argv.add("--thinking");
+            argv.add("off");
+            argv.add("--provider");
+            argv.add(provider);
+            argv.add("--model");
+            argv.add(cfg.model);
+            argv.add("--api-key");
+            argv.add(cfg.apiKey);
+            argv.add("--system-prompt");
+            argv.add(systemPrompt == null ? "" : systemPrompt);
+            argv.add(userPrompt == null ? "" : userPrompt);
 
-            ProcessBuilder pb = new ProcessBuilder(
-                TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash",
-                tmpScript.getAbsolutePath()
-            );
+            ProcessBuilder pb = new ProcessBuilder(argv);
             pb.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
             pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
             pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":" + System.getenv("PATH"));
             pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
             pb.environment().put("SSL_CERT_FILE", TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/etc/tls/cert.pem");
             pb.environment().put("NODE_OPTIONS", "--dns-result-order=ipv4first");
+            pb.environment().put("PI_CODING_AGENT_DIR", TermuxConstants.TERMUX_HOME_DIR_PATH + "/.botdrop/pi-agent");
             pb.redirectErrorStream(true);
             pb.redirectOutput(tmpOutput);
 
@@ -133,7 +153,6 @@ public class PiAgentBridge {
                 exitCode
             );
         } finally {
-            if (tmpScript != null) tmpScript.delete();
             if (tmpOutput != null) tmpOutput.delete();
             if (process != null) process.destroy();
         }
@@ -146,31 +165,6 @@ public class PiAgentBridge {
         } catch (Exception ignored) {
             return "";
         }
-    }
-
-    private String buildCommand(OpsLlmConfig cfg, String systemPrompt, String userPrompt) {
-        String provider = mapProviderName(cfg.provider);
-        if (provider == null) {
-            return "echo '{\"type\":\"assistant_message\",\"text\":\"Unsupported provider for assistant runtime.\"}'\n";
-        }
-        String escapedSystem = shellEscape(systemPrompt);
-        String escapedUser = shellEscape(userPrompt);
-        String escapedProvider = shellEscape(provider);
-        String escapedModel = shellEscape(cfg.model);
-        String escapedKey = shellEscape(cfg.apiKey);
-
-        return ""
-            + "PI_BIN=\"$(command -v pi 2>/dev/null || true)\"\n"
-            + "PI_NODE=\"$(command -v node 2>/dev/null || true)\"\n"
-            + "if [ -z \"$PI_BIN\" ] || [ -z \"$PI_NODE\" ]; then\n"
-            + "  echo '{\"type\":\"assistant_message\",\"text\":\"pi runtime is not installed in bootstrap. Please install @mariozechner/pi-coding-agent first.\"}'\n"
-            + "  exit 0\n"
-            + "fi\n"
-            + "PI_CODING_AGENT_DIR=\"$HOME/.botdrop/pi-agent\" "
-            + "\"$PI_NODE\" \"$PI_BIN\" -p --mode json --no-session --no-tools "
-            + "--thinking off "
-            + "--provider '" + escapedProvider + "' --model '" + escapedModel + "' --api-key '" + escapedKey + "' "
-            + "--system-prompt '" + escapedSystem + "' '" + escapedUser + "'\n";
     }
 
     private String mapProviderName(String openClawProvider) {
@@ -236,8 +230,4 @@ public class PiAgentBridge {
         return text.toString();
     }
 
-    private String shellEscape(String input) {
-        if (input == null) return "";
-        return input.replace("'", "'\"'\"'");
-    }
 }
