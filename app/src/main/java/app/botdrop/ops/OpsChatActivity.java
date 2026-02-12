@@ -69,7 +69,7 @@ public class OpsChatActivity extends Activity {
                 mAssistantEngine = new OpsPiAgentEngine(new PiAgentBridge(mService, new OpsCredentialResolver()));
                 append("system", "Assistant runtime ready.");
                 setBusy(false);
-                runDoctorNow();
+                append("system", "Tap Diagnose to run health checks.");
             }));
         }
 

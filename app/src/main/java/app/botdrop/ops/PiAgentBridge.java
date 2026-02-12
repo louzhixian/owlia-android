@@ -49,9 +49,13 @@ public class PiAgentBridge {
             latch.countDown();
         });
 
+        boolean completed = false;
         try {
-            latch.await(90, TimeUnit.SECONDS);
+            completed = latch.await(150, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
+        }
+        if (!completed) {
+            return new PiAgentResult(false, null, "Pi request timed out while waiting for runtime command queue");
         }
 
         BotDropService.CommandResult result = ref.get();
