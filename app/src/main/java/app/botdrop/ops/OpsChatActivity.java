@@ -263,7 +263,7 @@ public class OpsChatActivity extends Activity {
             latch.countDown();
         });
         try {
-            latch.await(75, TimeUnit.SECONDS);
+            latch.await(35, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
         }
     }
