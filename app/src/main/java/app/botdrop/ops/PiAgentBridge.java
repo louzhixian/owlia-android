@@ -6,9 +6,13 @@ import org.json.JSONArray;
 import com.termux.shared.termux.TermuxConstants;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -16,6 +20,8 @@ import java.util.concurrent.TimeUnit;
  * Shell bridge to pi CLI (JSON mode).
  */
 public class PiAgentBridge {
+    private static final String DEBUG_LOG_PATH =
+        TermuxConstants.TERMUX_HOME_DIR_PATH + "/.botdrop/ops-chat.log";
 
     public static class PiAgentResult {
         public final boolean success;
@@ -50,11 +56,14 @@ public class PiAgentBridge {
     }
 
     public PiAgentResult ask(String systemPrompt, String userPrompt) {
+        long startMs = System.currentTimeMillis();
         OpsLlmConfig cfg = credentialResolver.resolvePrimaryConfig();
         if (cfg == null || !cfg.isValid()) {
+            appendDebug("ask", "missing config/provider key");
             return new PiAgentResult(false, null, "No usable provider key/model found in auth profiles");
         }
 
+        appendDebug("ask", "start provider=" + cfg.provider + " model=" + cfg.model);
         CommandResult result = runPiCommand(cfg, systemPrompt, userPrompt, 20);
         if (!result.success) {
             String stderr = result.stderr == null ? "" : result.stderr.trim();
@@ -69,13 +78,21 @@ public class PiAgentBridge {
             } else {
                 err = "pi command failed with exit code " + result.exitCode;
             }
+            appendDebug("ask", "failed in " + (System.currentTimeMillis() - startMs)
+                + "ms exit=" + result.exitCode
+                + " stderr=" + truncate(stderr, 240)
+                + " stdout=" + truncate(stdout, 240));
             return new PiAgentResult(false, null, err);
         }
 
         String parsed = extractAssistantMessage(result.stdout);
         if (parsed == null || parsed.trim().isEmpty()) {
+            appendDebug("ask", "no assistant message in output, elapsed="
+                + (System.currentTimeMillis() - startMs) + "ms");
             return new PiAgentResult(false, null, "pi returned no assistant message");
         }
+        appendDebug("ask", "success in " + (System.currentTimeMillis() - startMs)
+            + "ms reply=" + truncate(parsed, 120));
         return new PiAgentResult(true, parsed, null);
     }
 
@@ -139,6 +156,7 @@ public class PiAgentBridge {
             pb.redirectOutput(tmpOutput);
 
             process = pb.start();
+            appendDebug("run", "spawned pid process for provider=" + provider + " model=" + cfg.model);
 
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
@@ -157,8 +175,10 @@ public class PiAgentBridge {
 
             exitCode = process.exitValue();
             stdout = readOutput(tmpOutput);
+            appendDebug("run", "finished exit=" + exitCode + " bytes=" + stdout.length());
             return new CommandResult(exitCode == 0, stdout, "", exitCode);
         } catch (Exception e) {
+            appendDebug("run", "exception=" + e.getMessage());
             return new CommandResult(
                 false,
                 stdout,
@@ -178,6 +198,25 @@ public class PiAgentBridge {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    private void appendDebug(String stage, String message) {
+        try {
+            File f = new File(DEBUG_LOG_PATH);
+            File dir = f.getParentFile();
+            if (dir != null && !dir.exists()) dir.mkdirs();
+            String ts = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(new Date());
+            try (FileWriter fw = new FileWriter(f, true)) {
+                fw.write(ts + " [" + stage + "] " + message + "\n");
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String truncate(String v, int max) {
+        if (v == null) return "";
+        if (v.length() <= max) return v;
+        return v.substring(0, max);
     }
 
     private String mapProviderName(String openClawProvider) {
