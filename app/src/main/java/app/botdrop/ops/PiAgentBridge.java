@@ -1,6 +1,7 @@
 package app.botdrop.ops;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -9,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import app.botdrop.BotDropService;
 
 /**
- * Shell bridge to pi-agent CLI (JSON mode).
+ * Shell bridge to pi CLI (JSON mode).
  */
 public class PiAgentBridge {
 
@@ -55,7 +56,7 @@ public class PiAgentBridge {
 
         BotDropService.CommandResult result = ref.get();
         if (result == null) {
-            return new PiAgentResult(false, null, "No response from pi-agent");
+            return new PiAgentResult(false, null, "No response from pi");
         }
         if (!result.success) {
             return new PiAgentResult(false, null, result.stderr == null ? result.stdout : result.stderr);
@@ -63,25 +64,50 @@ public class PiAgentBridge {
 
         String parsed = extractAssistantMessage(result.stdout);
         if (parsed == null || parsed.trim().isEmpty()) {
-            return new PiAgentResult(false, null, "pi-agent returned no assistant message");
+            return new PiAgentResult(false, null, "pi returned no assistant message");
         }
         return new PiAgentResult(true, parsed, null);
     }
 
     private String buildCommand(OpsLlmConfig cfg, String systemPrompt, String userPrompt) {
-        String model = cfg.provider + "/" + cfg.model;
+        String provider = mapProviderName(cfg.provider);
+        if (provider == null) {
+            return "echo '{\"type\":\"assistant_message\",\"text\":\"Unsupported provider for assistant runtime.\"}'\n";
+        }
         String escapedSystem = shellEscape(systemPrompt);
         String escapedUser = shellEscape(userPrompt);
-        String escapedModel = shellEscape(model);
+        String escapedProvider = shellEscape(provider);
+        String escapedModel = shellEscape(cfg.model);
         String escapedKey = shellEscape(cfg.apiKey);
 
         return ""
-            + "if ! command -v pi-agent >/dev/null 2>&1; then\n"
-            + "  echo '{\"type\":\"assistant_message\",\"text\":\"pi-agent is not installed in bootstrap. Please install @mariozechner/pi-agent first.\"}'\n"
+            + "if ! command -v pi >/dev/null 2>&1; then\n"
+            + "  echo '{\"type\":\"assistant_message\",\"text\":\"pi runtime is not installed in bootstrap. Please install @mariozechner/pi-coding-agent first.\"}'\n"
             + "  exit 0\n"
             + "fi\n"
-            + "pi-agent --json --api-key '" + escapedKey + "' --model '" + escapedModel + "' "
+            + "PI_CODING_AGENT_DIR=\"$HOME/.botdrop/pi-agent\" "
+            + "pi -p --mode json --no-session --no-tools "
+            + "--provider '" + escapedProvider + "' --model '" + escapedModel + "' --api-key '" + escapedKey + "' "
             + "--system-prompt '" + escapedSystem + "' '" + escapedUser + "'\n";
+    }
+
+    private String mapProviderName(String openClawProvider) {
+        if (openClawProvider == null) return null;
+        String provider = openClawProvider.trim();
+        switch (provider) {
+            case "anthropic":
+            case "openai":
+            case "google":
+            case "openrouter":
+            case "minimax":
+            case "kimi-coding":
+                return provider;
+            case "kimi":
+                return "kimi-coding";
+            default:
+                // Allow custom providers if pi runtime recognizes them.
+                return provider.isEmpty() ? null : provider;
+        }
     }
 
     private String extractAssistantMessage(String stdout) {
@@ -100,6 +126,26 @@ public class PiAgentBridge {
                     if (!t.trim().isEmpty()) {
                         if (text.length() > 0) text.append("\n");
                         text.append(t.trim());
+                    }
+                    continue;
+                }
+
+                if ("message_end".equals(type)) {
+                    JSONObject message = json.optJSONObject("message");
+                    if (message == null) continue;
+                    if (!"assistant".equals(message.optString("role", ""))) continue;
+
+                    JSONArray content = message.optJSONArray("content");
+                    if (content == null) continue;
+                    for (int i = 0; i < content.length(); i++) {
+                        JSONObject item = content.optJSONObject(i);
+                        if (item == null) continue;
+                        if (!"text".equals(item.optString("type", ""))) continue;
+                        String t = item.optString("text", "");
+                        if (!t.trim().isEmpty()) {
+                            if (text.length() > 0) text.append("\n");
+                            text.append(t.trim());
+                        }
                     }
                 }
             } catch (Exception ignored) {

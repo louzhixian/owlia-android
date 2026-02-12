@@ -59,7 +59,7 @@ public class OpsChatActivity extends Activity {
             mPiAgentInstaller.ensureInstalled((success, message) -> runOnUiThread(() -> {
                 if (!mBound) return;
                 if (!success) {
-                    append("system", "Failed to prepare pi-agent: " + message);
+                    append("system", "Failed to prepare assistant runtime: " + message);
                     append("system", "Tap Send to retry after network stabilizes.");
                     setBusy(false);
                     return;

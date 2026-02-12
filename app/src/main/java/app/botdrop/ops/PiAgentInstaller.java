@@ -3,7 +3,7 @@ package app.botdrop.ops;
 import app.botdrop.BotDropService;
 
 /**
- * Ensures pi-agent is available in Termux PATH for Ops chat.
+ * Ensures pi CLI is available in Termux PATH for Ops chat.
  */
 public class PiAgentInstaller {
 
@@ -18,10 +18,10 @@ public class PiAgentInstaller {
     }
 
     public void ensureInstalled(Callback callback) {
-        service.executeCommand("command -v pi-agent >/dev/null 2>&1 && echo installed || echo missing", check -> {
+        service.executeCommand("command -v pi >/dev/null 2>&1 && echo installed || echo missing", check -> {
             String state = check.stdout == null ? "" : check.stdout.trim();
             if (check.success && "installed".equals(state)) {
-                if (callback != null) callback.onComplete(true, "pi-agent ready");
+                if (callback != null) callback.onComplete(true, "pi ready");
                 return;
             }
             install(callback);
@@ -33,13 +33,13 @@ public class PiAgentInstaller {
             "if ! command -v npm >/dev/null 2>&1; then echo 'npm missing'; exit 1; fi\n" +
             "npm config set fund false >/dev/null 2>&1 || true\n" +
             "npm config set update-notifier false >/dev/null 2>&1 || true\n" +
-            "npm i -g @mariozechner/pi-agent\n" +
-            "command -v pi-agent >/dev/null 2>&1\n";
+            "npm i -g @mariozechner/pi-coding-agent\n" +
+            "command -v pi >/dev/null 2>&1\n";
 
         service.executeCommand(cmd, result -> {
             if (callback == null) return;
             if (result.success) {
-                callback.onComplete(true, "pi-agent installed");
+                callback.onComplete(true, "pi installed");
             } else {
                 String err = result.stderr == null || result.stderr.trim().isEmpty()
                     ? result.stdout
