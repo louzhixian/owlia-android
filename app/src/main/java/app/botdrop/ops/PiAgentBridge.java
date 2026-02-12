@@ -11,8 +11,6 @@ import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
-import app.botdrop.BotDropService;
-
 /**
  * Shell bridge to pi CLI (JSON mode).
  */
@@ -30,11 +28,23 @@ public class PiAgentBridge {
         }
     }
 
-    private final BotDropService botDropService;
     private final OpsCredentialResolver credentialResolver;
 
-    public PiAgentBridge(BotDropService botDropService, OpsCredentialResolver credentialResolver) {
-        this.botDropService = botDropService;
+    private static class CommandResult {
+        final boolean success;
+        final String stdout;
+        final String stderr;
+        final int exitCode;
+
+        CommandResult(boolean success, String stdout, String stderr, int exitCode) {
+            this.success = success;
+            this.stdout = stdout;
+            this.stderr = stderr;
+            this.exitCode = exitCode;
+        }
+    }
+
+    public PiAgentBridge(OpsCredentialResolver credentialResolver) {
         this.credentialResolver = credentialResolver;
     }
 
@@ -45,7 +55,7 @@ public class PiAgentBridge {
         }
 
         String cmd = buildCommand(cfg, systemPrompt, userPrompt);
-        BotDropService.CommandResult result = runPiCommand(cmd, 150);
+        CommandResult result = runPiCommand(cmd, 150);
         if (!result.success) {
             String stderr = result.stderr == null ? "" : result.stderr.trim();
             String stdout = result.stdout == null ? "" : result.stdout.trim();
@@ -62,7 +72,7 @@ public class PiAgentBridge {
         return new PiAgentResult(true, parsed, null);
     }
 
-    private BotDropService.CommandResult runPiCommand(String command, int timeoutSeconds) {
+    private CommandResult runPiCommand(String command, int timeoutSeconds) {
         StringBuilder stdout = new StringBuilder();
         int exitCode = -1;
         Process process = null;
@@ -103,7 +113,7 @@ public class PiAgentBridge {
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                return new BotDropService.CommandResult(
+                return new CommandResult(
                     false,
                     stdout.toString(),
                     "pi command timed out after " + timeoutSeconds + " seconds",
@@ -112,9 +122,9 @@ public class PiAgentBridge {
             }
 
             exitCode = process.exitValue();
-            return new BotDropService.CommandResult(exitCode == 0, stdout.toString(), "", exitCode);
+            return new CommandResult(exitCode == 0, stdout.toString(), "", exitCode);
         } catch (Exception e) {
-            return new BotDropService.CommandResult(
+            return new CommandResult(
                 false,
                 stdout.toString(),
                 "Exception: " + e.getMessage(),
