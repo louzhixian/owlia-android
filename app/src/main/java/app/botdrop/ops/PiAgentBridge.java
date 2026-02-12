@@ -59,7 +59,12 @@ public class PiAgentBridge {
             return new PiAgentResult(false, null, "No response from pi");
         }
         if (!result.success) {
-            return new PiAgentResult(false, null, result.stderr == null ? result.stdout : result.stderr);
+            String stderr = result.stderr == null ? "" : result.stderr.trim();
+            String stdout = result.stdout == null ? "" : result.stdout.trim();
+            String err = !stderr.isEmpty()
+                ? stderr
+                : (!stdout.isEmpty() ? stdout : ("pi command failed with exit code " + result.exitCode));
+            return new PiAgentResult(false, null, err);
         }
 
         String parsed = extractAssistantMessage(result.stdout);
