@@ -59,9 +59,16 @@ public class PiAgentBridge {
         if (!result.success) {
             String stderr = result.stderr == null ? "" : result.stderr.trim();
             String stdout = result.stdout == null ? "" : result.stdout.trim();
-            String err = !stderr.isEmpty()
-                ? stderr
-                : (!stdout.isEmpty() ? stdout : ("pi command failed with exit code " + result.exitCode));
+            String err;
+            if (!stderr.isEmpty() && !stdout.isEmpty()) {
+                err = stderr + "\n--- partial output ---\n" + stdout;
+            } else if (!stderr.isEmpty()) {
+                err = stderr;
+            } else if (!stdout.isEmpty()) {
+                err = stdout;
+            } else {
+                err = "pi command failed with exit code " + result.exitCode;
+            }
             return new PiAgentResult(false, null, err);
         }
 
@@ -102,6 +109,10 @@ public class PiAgentBridge {
             argv.add("json");
             argv.add("--no-session");
             argv.add("--no-tools");
+            argv.add("--no-extensions");
+            argv.add("--no-skills");
+            argv.add("--no-prompt-templates");
+            argv.add("--no-themes");
             argv.add("--thinking");
             argv.add("off");
             argv.add("--provider");
@@ -122,6 +133,8 @@ public class PiAgentBridge {
             pb.environment().put("SSL_CERT_FILE", TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/etc/tls/cert.pem");
             pb.environment().put("NODE_OPTIONS", "--dns-result-order=ipv4first");
             pb.environment().put("PI_CODING_AGENT_DIR", TermuxConstants.TERMUX_HOME_DIR_PATH + "/.botdrop/pi-agent");
+            pb.environment().put("PI_SKIP_VERSION_CHECK", "1");
+            pb.directory(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
             pb.redirectErrorStream(true);
             pb.redirectOutput(tmpOutput);
 
