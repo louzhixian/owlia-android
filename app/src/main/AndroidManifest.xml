@@ -114,22 +114,8 @@
             android:exported="false"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
-        <activity
-            android:name="app.botdrop.ops.OpsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
-
-        <activity
-            android:name="app.botdrop.ops.OpsChatActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
-
         <service
             android:name="app.botdrop.BotDropService"
-            android:exported="false" />
-
-        <service
-            android:name="app.botdrop.ops.OpsBubbleService"
             android:exported="false" />
 
         <!-- BotDrop no-root UI automation -->

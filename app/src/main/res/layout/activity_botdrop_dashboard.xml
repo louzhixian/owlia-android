@@ -319,16 +319,6 @@
             android:textColor="#1A1A1A"
             android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btn_open_ops_assistant"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="🛠 Open Ops Assistant"
-            android:textAllCaps="false"
-            android:background="@drawable/botdrop_button_outline_bg"
-            android:textColor="@color/botdrop_accent" />
-
         <!-- Automation Card -->
         <LinearLayout
             android:id="@+id/automation_card"
