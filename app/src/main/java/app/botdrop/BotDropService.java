@@ -403,6 +403,7 @@ public class BotDropService extends Service {
         // Ensure legacy config keys are repaired right before starting the gateway.
         // This matters for in-place upgrades where users won't re-run channel setup.
         BotDropConfig.sanitizeLegacyConfig();
+        BotDropConfig.ensureWritableLoggingConfig();
 
         String logDir = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw";
         String debugLog = logDir + "/gateway-debug.log";
@@ -419,8 +420,36 @@ public class BotDropService extends Service {
             "echo \"PATH=$PATH\" >&2\n" +
             "# sshd\n" +
             "pgrep -x sshd || sshd || true\n" +
-            "# kill old gateway\n" +
-            "pkill -f \"openclaw.*gateway\" 2>/dev/null || true\n" +
+            "# Ensure openclaw wrapper is safe on Android/Termux (npm updates can replace it with a /usr/bin/env shim)\n" +
+            "if [ -L $PREFIX/bin/openclaw ] || head -n 1 $PREFIX/bin/openclaw 2>/dev/null | grep -q \"/usr/bin/env\"; then\n" +
+            "  echo \"Repairing $PREFIX/bin/openclaw wrapper\" >&2\n" +
+            "  rm -f $PREFIX/bin/openclaw\n" +
+            "  printf \"#!%s/bin/bash\\n\" \"$PREFIX\" > $PREFIX/bin/openclaw\n" +
+            "  cat >> $PREFIX/bin/openclaw <<'BOTDROP_OPENCLAW_WRAPPER'\n" +
+            "PREFIX=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\n" +
+            "ENTRY=\"\"\n" +
+            "for CANDIDATE in \\\n" +
+            "  \"$PREFIX/lib/node_modules/openclaw/dist/cli.js\" \\\n" +
+            "  \"$PREFIX/lib/node_modules/openclaw/bin/openclaw.js\" \\\n" +
+            "  \"$PREFIX/lib/node_modules/openclaw/dist/index.js\" \\\n" +
+            "  \"$PREFIX/lib/node_modules/openclaw/openclaw.mjs\" \\\n" +
+            "  \"$PREFIX/lib/node_modules/openclaw/dist/entry.js\"; do\n" +
+            "  if [ -f \"$CANDIDATE\" ]; then ENTRY=\"$CANDIDATE\"; break; fi\n" +
+            "done\n" +
+            "if [ -z \"$ENTRY\" ]; then\n" +
+            "  echo \"openclaw entrypoint not found under $PREFIX/lib/node_modules/openclaw\" >&2\n" +
+            "  exit 127\n" +
+            "fi\n" +
+            "export SSL_CERT_FILE=\"$PREFIX/etc/tls/cert.pem\"\n" +
+            "export NODE_OPTIONS=\"--dns-result-order=ipv4first\"\n" +
+            "export TMPDIR=\"$PREFIX/tmp\"\n" +
+            "mkdir -p \"$TMPDIR\" 2>/dev/null || true\n" +
+            "exec \"$PREFIX/bin/termux-chroot\" \"$PREFIX/bin/node\" \"$ENTRY\" \"$@\"\n" +
+            "BOTDROP_OPENCLAW_WRAPPER\n" +
+            "  chmod 755 $PREFIX/bin/openclaw\n" +
+            "fi\n" +
+            "# kill old gateway (avoid pkill patterns that could match this shell)\n" +
+            "pkill -f \"$PREFIX/bin/node .*openclaw.*gateway\" 2>/dev/null || true\n" +
             "if [ -f " + GATEWAY_PID_FILE + " ]; then\n" +
             "  kill $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null\n" +
             "  rm -f " + GATEWAY_PID_FILE + "\n" +
