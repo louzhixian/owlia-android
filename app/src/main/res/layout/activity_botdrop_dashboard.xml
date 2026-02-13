@@ -130,6 +130,33 @@
                     android:text="—"
                     android:textSize="14sp"
                     android:textColor="@color/botdrop_secondary_text" />
+
+                <!-- OpenClaw version + check button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/openclaw_version_text"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="13sp"
+                        android:textColor="@color/botdrop_secondary_text" />
+
+                    <TextView
+                        android:id="@+id/btn_check_openclaw_update"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Check for updates"
+                        android:textSize="13sp"
+                        android:textColor="@color/botdrop_accent"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="0dp" />
+                </LinearLayout>
         </LinearLayout>
 
         <!-- Startup Notice -->

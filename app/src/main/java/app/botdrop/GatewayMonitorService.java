@@ -248,6 +248,13 @@ public class GatewayMonitorService extends Service {
             return;
         }
 
+        // Skip monitoring during OpenClaw update to avoid restarting mid-install.
+        if (mBotDropService.isUpdateInProgress()) {
+            Logger.logInfo(LOG_TAG, "OpenClaw update in progress, skipping gateway check");
+            updateStatus("Updating...");
+            return;
+        }
+
         // Avoid restart storms while a (re)start is already running.
         if (mRestartInFlight) {
             Logger.logDebug(LOG_TAG, "Restart already in-flight, skipping check");

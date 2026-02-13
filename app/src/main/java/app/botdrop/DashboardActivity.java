@@ -65,6 +65,11 @@ public class DashboardActivity extends Activity {
     private TextView mCurrentModelText;
     private View mGatewayErrorBanner;
     private TextView mGatewayErrorText;
+    private TextView mOpenclawVersionText;
+    private TextView mOpenclawCheckUpdateButton;
+    private String mOpenclawLatestUpdateVersion;
+    private AlertDialog mOpenclawUpdateDialog;
+    private boolean mOpenclawManualCheckRequested;
 
     private BotDropService mBotDropService;
     private boolean mBound = false;
@@ -89,6 +94,9 @@ public class DashboardActivity extends Activity {
 
             // Load current model
             loadCurrentModel();
+
+            // Check for OpenClaw updates
+            checkOpenclawUpdate();
         }
 
         @Override
@@ -136,6 +144,13 @@ public class DashboardActivity extends Activity {
         mUpdateBanner = findViewById(R.id.update_banner);
         mUpdateBannerText = findViewById(R.id.update_banner_text);
 
+        // OpenClaw version + check button
+        mOpenclawVersionText = findViewById(R.id.openclaw_version_text);
+        mOpenclawCheckUpdateButton = findViewById(R.id.btn_check_openclaw_update);
+        if (mOpenclawCheckUpdateButton != null) {
+            mOpenclawCheckUpdateButton.setOnClickListener(v -> forceCheckOpenclawUpdate());
+        }
+
         // Load channel info
         loadChannelInfo();
 
@@ -163,6 +178,8 @@ public class DashboardActivity extends Activity {
         // Cancel all pending callbacks to prevent memory leak
         mHandler.removeCallbacksAndMessages(null);
         mStatusRefreshRunnable = null;
+
+        dismissOpenclawUpdateDialog();
         
         // Unbind from service
         if (mBound) {
@@ -629,6 +646,244 @@ public class DashboardActivity extends Activity {
         ConfigTemplateCache.saveTemplate(DashboardActivity.this, template);
 
         restartGateway();
+    }
+
+    // --- OpenClaw update ---
+
+    private void checkOpenclawUpdate() {
+        if (!mBound || mBotDropService == null) return;
+
+        // One-time migration: clear stale throttle from previous code that recorded
+        // check time even when npm returned invalid output, blocking retries for 24h.
+        android.content.SharedPreferences updatePrefs =
+            getSharedPreferences("openclaw_update", MODE_PRIVATE);
+        if (!updatePrefs.getBoolean("throttle_fix_v1", false)) {
+            updatePrefs.edit()
+                .remove("last_check_time")
+                .putBoolean("throttle_fix_v1", true)
+                .apply();
+        }
+
+        // Display current version
+        String currentVersion = BotDropService.getOpenclawVersion();
+        if (currentVersion != null && mOpenclawVersionText != null) {
+            mOpenclawVersionText.setText("OpenClaw v" + currentVersion);
+        }
+
+        // Also check stored result immediately (in case a previous check found an update)
+        String[] stored = OpenClawUpdateChecker.getAvailableUpdate(this);
+        if (stored != null) {
+            showOpenclawUpdateDialog(stored[0], stored[1], false);
+        }
+
+        // Run throttled check
+        OpenClawUpdateChecker.check(this, mBotDropService, new OpenClawUpdateChecker.UpdateCallback() {
+            @Override
+            public void onUpdateAvailable(String current, String latest) {
+                showOpenclawUpdateDialog(current, latest, false);
+            }
+
+            @Override
+            public void onNoUpdate() {
+                dismissOpenclawUpdateDialog();
+            }
+        });
+    }
+
+    private void forceCheckOpenclawUpdate() {
+        if (!mBound || mBotDropService == null) {
+            Toast.makeText(this, "Service not connected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (mOpenclawCheckUpdateButton == null) {
+            Toast.makeText(this, "Check button unavailable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        mOpenclawCheckUpdateButton.setEnabled(false);
+        mOpenclawCheckUpdateButton.setText("Checking...");
+        mOpenclawLatestUpdateVersion = null;
+        mOpenclawManualCheckRequested = true;
+
+        OpenClawUpdateChecker.check(this, mBotDropService, new OpenClawUpdateChecker.UpdateCallback() {
+            @Override
+            public void onUpdateAvailable(String current, String latest) {
+                mOpenclawCheckUpdateButton.setEnabled(true);
+                mOpenclawCheckUpdateButton.setText("Check for updates");
+                mOpenclawManualCheckRequested = false;
+                showOpenclawUpdateDialog(current, latest, true);
+            }
+
+            @Override
+            public void onNoUpdate() {
+                mOpenclawCheckUpdateButton.setEnabled(true);
+                mOpenclawCheckUpdateButton.setText("Check for updates");
+                mOpenclawManualCheckRequested = false;
+                dismissOpenclawUpdateDialog();
+                Toast.makeText(DashboardActivity.this, "Already up to date", Toast.LENGTH_SHORT).show();
+            }
+        }, true);
+    }
+
+    private void showOpenclawUpdateDialog(String currentVersion, String latestVersion, boolean manualCheck) {
+        if (TextUtils.isEmpty(latestVersion) || isFinishing() || isDestroyed()) {
+            return;
+        }
+
+        if (!manualCheck && TextUtils.equals(latestVersion, mOpenclawLatestUpdateVersion)) {
+            return;
+        }
+        if (mOpenclawUpdateDialog != null && mOpenclawUpdateDialog.isShowing()) {
+            return;
+        }
+
+        mOpenclawLatestUpdateVersion = latestVersion;
+        String currentPart = TextUtils.isEmpty(currentVersion) ? "Unknown" : currentVersion;
+        String content =
+            "OpenClaw update available: v" + currentPart + " → v" + latestVersion + "\n\n" +
+            "A newer OpenClaw version is available.\nWould you like to update now?";
+
+        dismissOpenclawUpdateDialog();
+        final String updateVersion = latestVersion;
+        mOpenclawUpdateDialog = new AlertDialog.Builder(this)
+            .setTitle("Update available")
+            .setMessage(content)
+            .setCancelable(true)
+            .setPositiveButton("Update", (d, w) -> startOpenclawUpdate(updateVersion))
+            .setNeutralButton("Later", null)
+            .setNegativeButton("Dismiss", (d, w) -> dismissOpenclawUpdate(updateVersion))
+            .setOnDismissListener(dialog -> {
+                if (mOpenclawUpdateDialog == dialog) {
+                    mOpenclawUpdateDialog = null;
+                    mOpenclawManualCheckRequested = false;
+                }
+            })
+            .create();
+        mOpenclawUpdateDialog.show();
+        if (mOpenclawManualCheckRequested) {
+            mOpenclawManualCheckRequested = false;
+        }
+    }
+
+    private void dismissOpenclawUpdate(String version) {
+        if (!TextUtils.isEmpty(version)) {
+            OpenClawUpdateChecker.dismiss(this, version);
+            Toast.makeText(this, "Dismissed update: v" + version, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void dismissOpenclawUpdateDialog() {
+        if (mOpenclawUpdateDialog != null && mOpenclawUpdateDialog.isShowing()) {
+            mOpenclawUpdateDialog.dismiss();
+        }
+        mOpenclawUpdateDialog = null;
+    }
+
+    private void startOpenclawUpdate(String targetVersion) {
+        if (TextUtils.isEmpty(targetVersion)) {
+            Toast.makeText(this, "No update target version", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        dismissOpenclawUpdateDialog();
+        if (!mBound || mBotDropService == null) return;
+
+        // Build step-based progress dialog
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_openclaw_update, null);
+        TextView[] stepIcons = {
+            dialogView.findViewById(R.id.update_step_0_icon),
+            dialogView.findViewById(R.id.update_step_1_icon),
+            dialogView.findViewById(R.id.update_step_2_icon),
+            dialogView.findViewById(R.id.update_step_3_icon),
+        };
+        TextView statusMessage = dialogView.findViewById(R.id.update_status_message);
+
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+            .setTitle("Updating OpenClaw")
+            .setView(dialogView)
+            .setCancelable(false)
+            .create();
+        progressDialog.show();
+
+        // Disable control buttons during update
+        mStartButton.setEnabled(false);
+        mStopButton.setEnabled(false);
+        mRestartButton.setEnabled(false);
+
+        // Map step messages to step indices
+        final String[] stepMessages = {
+            "Stopping gateway...",
+            "Installing update...",
+            "Finalizing...",
+            "Starting gateway...",
+        };
+
+        mBotDropService.updateOpenclaw(targetVersion,
+            new BotDropService.UpdateProgressCallback() {
+            private int currentStep = -1;
+
+            private void advanceTo(String message) {
+                // Find which step this message belongs to
+                int nextStep = -1;
+                for (int i = 0; i < stepMessages.length; i++) {
+                    if (stepMessages[i].equals(message)) {
+                        nextStep = i;
+                        break;
+                    }
+                }
+                if (nextStep < 0) return;
+
+                // Mark all previous steps as complete
+                for (int i = 0; i <= currentStep && i < stepIcons.length; i++) {
+                    stepIcons[i].setText("\u2713");
+                }
+                // Mark current step as in-progress
+                if (nextStep < stepIcons.length) {
+                    stepIcons[nextStep].setText("\u25CF");
+                }
+                currentStep = nextStep;
+            }
+
+            @Override
+            public void onStepStart(String message) {
+                advanceTo(message);
+            }
+
+            @Override
+            public void onError(String error) {
+                progressDialog.dismiss();
+                refreshStatus();
+                new AlertDialog.Builder(DashboardActivity.this)
+                    .setTitle("Update Failed")
+                    .setMessage(error)
+                    .setPositiveButton("OK", null)
+                    .show();
+                checkOpenclawUpdate();
+            }
+
+            @Override
+            public void onComplete(String newVersion) {
+                mOpenclawLatestUpdateVersion = null;
+                // Mark all steps complete
+                for (TextView icon : stepIcons) {
+                    icon.setText("\u2713");
+                }
+                statusMessage.setText("Updated to v" + newVersion);
+
+                // Auto-dismiss after 1.5s
+                mHandler.postDelayed(() -> {
+                    if (!isFinishing()) {
+                        progressDialog.dismiss();
+                    }
+                    OpenClawUpdateChecker.clearUpdate(DashboardActivity.this);
+                    if (mOpenclawVersionText != null) {
+                        mOpenclawVersionText.setText("OpenClaw v" + newVersion);
+                    }
+                    refreshStatus();
+                }, 1500);
+            }
+        });
     }
 
     private void checkGatewayErrors(boolean isRunning) {

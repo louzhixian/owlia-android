@@ -227,7 +227,10 @@ public final class TermuxInstaller {
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
 
                     // Create BotDrop install script and environment
-                    createBotDropScripts();
+                    String openclawVersion = activity.getSharedPreferences(
+                        "botdrop_settings", Context.MODE_PRIVATE)
+                        .getString("openclaw_install_version", "openclaw@latest");
+                    createBotDropScripts(openclawVersion);
 
                     activity.runOnUiThread(whenDone);
 
@@ -406,7 +409,7 @@ public final class TermuxInstaller {
      *   BOTDROP_COMPLETE
      *   BOTDROP_ERROR:message
      */
-    private static void createBotDropScripts() {
+    public static void createBotDropScripts(String openclawVersion) {
         try {
             // --- 1. Create install.sh ---
 
@@ -468,7 +471,7 @@ public final class TermuxInstaller {
                 "echo \"BOTDROP_STEP:1:DONE\"\n\n" +
                 "echo \"BOTDROP_STEP:2:START:Installing OpenClaw\"\n" +
                 "rm -rf $PREFIX/lib/node_modules/openclaw 2>/dev/null\n" +
-                "NPM_OUTPUT=$(npm install -g openclaw@latest --ignore-scripts --force 2>&1)\n" +
+                "NPM_OUTPUT=$(npm install -g " + openclawVersion + " --ignore-scripts --force 2>&1)\n" +
                 "NPM_EXIT=$?\n" +
                 "if [ $NPM_EXIT -eq 0 ]; then\n" +
                 "    # Create a stable openclaw wrapper (npm-generated shim can be broken on Android/proot)\n" +
