@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.LayoutInflater;
@@ -11,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,6 +21,12 @@ import androidx.fragment.app.Fragment;
 import com.termux.R;
 import com.termux.shared.logger.Logger;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -32,6 +40,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class InstallFragment extends Fragment {
 
     private static final String LOG_TAG = "InstallFragment";
+    private static final String MODEL_LIST_COMMAND = "openclaw models list --all --plain";
+    private static final String PREFS_NAME = "openclaw_model_cache_v1";
+    private static final String CACHE_KEY_PREFIX = "models_by_version_";
 
     // Step indicators
     private TextView mStep0Icon, mStep0Text;
@@ -49,6 +60,10 @@ public class InstallFragment extends Fragment {
 
     // Track delayed callbacks to prevent memory leaks
     private Runnable mNavigationRunnable;
+
+    private interface ModelListPrefetchCallback {
+        void onFinished();
+    }
 
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -201,18 +216,170 @@ public class InstallFragment extends Fragment {
                     mStatusMessage.setText("Installation complete!");
                 }
 
-                // Auto-advance to next step after 1.5 seconds
-                // Track runnable so we can remove it in onDestroyView() if needed
-                mNavigationRunnable = () -> {
-                    if (!isAdded() || !isResumed()) return;
-                    SetupActivity activity = (SetupActivity) getActivity();
-                    if (activity != null && !activity.isFinishing()) {
-                        activity.goToNextStep();
+                prefetchModelList(version, () -> {
+                    if (!isAdded() || !isResumed() || mStatusMessage == null) {
+                        return;
                     }
-                };
-                mStatusMessage.postDelayed(mNavigationRunnable, 1500);
+                    mStatusMessage.setText("Preparing next step...");
+
+                    // Auto-advance to next step after 1.5 seconds
+                    // Track runnable so we can remove it in onDestroyView() if needed
+                    mNavigationRunnable = () -> {
+                        if (!isAdded() || !isResumed()) return;
+                        SetupActivity activity = (SetupActivity) getActivity();
+                        if (activity != null && !activity.isFinishing()) {
+                            activity.goToNextStep();
+                        }
+                    };
+                    mStatusMessage.postDelayed(mNavigationRunnable, 1500);
+                });
             }
         });
+    }
+
+    private void prefetchModelList(String openclawVersion, ModelListPrefetchCallback callback) {
+        if (mService == null || getContext() == null) {
+            if (callback != null) {
+                callback.onFinished();
+            }
+            return;
+        }
+
+        final String normalizedVersion = normalizeCacheKey(openclawVersion);
+        if (!TextUtils.isEmpty(normalizedVersion) && hasCachedModelList(normalizedVersion)) {
+            Logger.logInfo(LOG_TAG, "Using cached model list for OpenClaw v" + openclawVersion);
+            if (callback != null) {
+                callback.onFinished();
+            }
+            return;
+        }
+
+        mService.executeCommand(MODEL_LIST_COMMAND, result -> {
+            if (!result.success) {
+                Logger.logWarn(LOG_TAG, "Model list prefetch failed for v" + openclawVersion + ": exit " + result.exitCode);
+                if (callback != null) {
+                    callback.onFinished();
+                }
+                return;
+            }
+
+            List<ModelInfo> models = parseModelList(result.stdout);
+            if (models.isEmpty()) {
+                Logger.logWarn(LOG_TAG, "Model list prefetch returned empty output for v" + openclawVersion);
+                if (callback != null) {
+                    callback.onFinished();
+                }
+                return;
+            }
+
+            Collections.sort(models, (a, b) -> {
+                if (a == null || b == null || a.fullName == null || b.fullName == null) return 0;
+                return b.fullName.compareToIgnoreCase(a.fullName);
+            });
+
+            cacheModels(normalizedVersion, models);
+            Logger.logInfo(LOG_TAG, "Prefetched " + models.size() + " models for OpenClaw v" + openclawVersion);
+            if (callback != null) {
+                callback.onFinished();
+            }
+        });
+    }
+
+    private boolean hasCachedModelList(String version) {
+        if (TextUtils.isEmpty(version)) {
+            return false;
+        }
+
+        try {
+            SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            String raw = prefs.getString(cacheKey(version), null);
+            if (TextUtils.isEmpty(raw)) return false;
+
+            JSONObject root = new JSONObject(raw);
+            String cachedVersion = root.optString("version", "");
+            if (!TextUtils.equals(cachedVersion, version)) return false;
+
+            JSONArray list = root.optJSONArray("models");
+            return list != null && list.length() > 0;
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to check cached model list: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private List<ModelInfo> parseModelList(String output) {
+        List<ModelInfo> models = new ArrayList<>();
+        if (TextUtils.isEmpty(output)) {
+            return models;
+        }
+
+        try {
+            String[] lines = output.split("\\r?\\n");
+            for (String line : lines) {
+                String trimmed = line == null ? "" : line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                if (trimmed.startsWith("#") || trimmed.startsWith("Model ")) {
+                    continue;
+                }
+
+                String token = trimmed;
+                if (trimmed.contains(" ")) {
+                    token = trimmed.split("\\s+")[0];
+                }
+
+                if (isModelToken(token)) {
+                    models.add(new ModelInfo(token));
+                }
+            }
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to parse prefetched model list: " + e.getMessage());
+        }
+
+        return models;
+    }
+
+    private void cacheModels(String version, List<ModelInfo> models) {
+        if (TextUtils.isEmpty(version) || models == null || models.isEmpty() || getContext() == null) {
+            return;
+        }
+
+        try {
+            JSONArray list = new JSONArray();
+            for (ModelInfo model : models) {
+                if (model != null && !TextUtils.isEmpty(model.fullName)) {
+                    list.put(model.fullName);
+                }
+            }
+
+            JSONObject root = new JSONObject();
+            root.put("version", version);
+            root.put("updated_at", System.currentTimeMillis());
+            root.put("models", list);
+
+            SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putString(cacheKey(version), root.toString()).apply();
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to cache prefetched model list: " + e.getMessage());
+        }
+    }
+
+    private String cacheKey(String version) {
+        return CACHE_KEY_PREFIX + normalizeCacheKey(version);
+    }
+
+    private String normalizeCacheKey(String version) {
+        if (TextUtils.isEmpty(version)) {
+            return "unknown";
+        }
+        return version.trim().replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private boolean isModelToken(String token) {
+        if (token == null || token.isEmpty()) return false;
+        if (!token.contains("/")) return false;
+        return token.matches("[A-Za-z0-9._-]+/[A-Za-z0-9._:/-]+");
     }
 
     private void updateStep(int step, String icon, String text, boolean complete) {

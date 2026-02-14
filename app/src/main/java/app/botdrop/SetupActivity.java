@@ -1,12 +1,15 @@
 package app.botdrop;
 
 import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -16,7 +19,20 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
+import com.termux.shared.android.PermissionUtils;
 import com.termux.shared.logger.Logger;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
+
+import com.termux.shared.termux.TermuxConstants;
 
 /**
  * Setup wizard with 4 steps:
@@ -29,6 +45,16 @@ import com.termux.shared.logger.Logger;
 public class SetupActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "SetupActivity";
+    private static final String BOTDROP_UPDATE_URL = "https://botdrop.app/";
+    private static final int OPENCLAW_STORAGE_PERMISSION_REQUEST_CODE = 3002;
+    private static final String OPENCLAW_BACKUP_DIRECTORY = "BotDrop/openclaw";
+    private static final String OPENCLAW_BACKUP_FILE_PREFIX = "openclaw-config-backup-";
+    private static final String OPENCLAW_BACKUP_FILE_EXTENSION = ".json";
+    private static final String OPENCLAW_BACKUP_META_OPENCLAW_CONFIG_KEY = "openclawConfig";
+    private static final String OPENCLAW_BACKUP_META_AUTH_PROFILES_KEY = "authProfiles";
+    private static final String OPENCLAW_CONFIG_FILE = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/openclaw.json";
+    private static final String OPENCLAW_AUTH_PROFILES_FILE =
+        TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw/agents/main/agent/auth-profiles.json";
 
     /**
      * Interface for fragments to intercept Next button behavior
@@ -55,6 +81,8 @@ public class SetupActivity extends AppCompatActivity {
     private View mNavigationBar;
     private Button mBackButton;
     private Button mNextButton;
+    private Runnable mPendingOpenclawStorageAction;
+    private Runnable mPendingOpenclawStorageDeniedAction;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,19 +139,29 @@ public class SetupActivity extends AppCompatActivity {
             UpdateChecker.forceCheck(this, (version, url, notes) -> {
                 v.setEnabled(true);
                 if (version != null && !version.isEmpty()) {
-                    // Show update available message
-                    Toast.makeText(this, "Update available: v" + version, Toast.LENGTH_SHORT).show();
-                    // Could show a dialog or banner here
+                    new AlertDialog.Builder(this)
+                        .setTitle("Update available")
+                        .setMessage("A new version is available: v" + version + "\n\nGo to update page?")
+                        .setPositiveButton("Open", (d, w) -> openBotdropUpdatePage())
+                        .setNegativeButton("Cancel", null)
+                        .show();
                 } else {
-                    Toast.makeText(this, "No updates available", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "No update available", Toast.LENGTH_SHORT).show();
                 }
             });
         });
 
         Logger.logDebug(LOG_TAG, "SetupActivity created, starting at step " + startStep);
 
-        // Check for cached config and offer restore
-        showRestoreConfigDialog();
+    }
+
+    private void openBotdropUpdatePage() {
+        try {
+            Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(BOTDROP_UPDATE_URL));
+            startActivity(browserIntent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "No browser app found", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -157,6 +195,30 @@ public class SetupActivity extends AppCompatActivity {
      */
     public void goToNextStep() {
         int current = mViewPager.getCurrentItem();
+        if (current == STEP_INSTALL) {
+            runWithOpenclawStoragePermission(
+                () -> {
+                    File latestBackup = getLatestOpenclawBackupFile();
+                    if (latestBackup == null) {
+                        continueToNextStep(current);
+                        return;
+                    }
+
+                    if (!latestBackup.exists()) {
+                        continueToNextStep(current);
+                        return;
+                    }
+
+                    showOpenclawRestoreDialog(() -> continueToNextStep(current), latestBackup);
+                },
+                () -> continueToNextStep(current)
+            );
+            return;
+        }
+        continueToNextStep(current);
+    }
+
+    private void continueToNextStep(int current) {
         if (current < STEP_COUNT - 1) {
             mViewPager.setCurrentItem(current + 1, true);
         } else {
@@ -168,67 +230,179 @@ public class SetupActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Check for cached config and offer to restore it.
-     * Called in onCreate() before showing the first setup fragment.
-     */
-    private void showRestoreConfigDialog() {
-        if (!ConfigTemplateCache.hasTemplate(this)) {
-            return;
-        }
-
+    private void showOpenclawRestoreDialog(@NonNull Runnable continueWithoutRestore, @NonNull File backupFile) {
         new AlertDialog.Builder(this)
-            .setTitle("Restore Configuration?")
-            .setMessage("Use your previous configuration to set up quickly.")
-            .setPositiveButton("Use Previous", (dialog, which) -> {
-                applyTemplateAndContinue();
+            .setTitle("Restore OpenClaw config before setup?")
+            .setMessage("A saved OpenClaw backup was found. Restore will replace current openclaw.json and auth-profiles.json, then jump to Dashboard. "
+                + "Choose Start from scratch to continue normal setup.")
+            .setPositiveButton("Restore config", (dialog, which) -> {
+                restoreOpenclawConfigAndContinue(backupFile, continueWithoutRestore);
             })
-            .setNegativeButton("Start Fresh", (dialog, which) -> {
-                dialog.dismiss();
-            })
+            .setNegativeButton("Start from scratch", (dialog, which) -> continueWithoutRestore.run())
             .setCancelable(false)
             .show();
     }
 
-    /**
-     * Apply cached config template and navigate to appropriate step.
-     * If Telegram is configured, go to dashboard. Otherwise, skip to channel setup.
-     */
-    private void applyTemplateAndContinue() {
-        ConfigTemplate template = ConfigTemplateCache.loadTemplate(this);
-        if (template == null || !template.isValid()) {
-            Toast.makeText(this, "Failed to load previous configuration", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void restoreOpenclawConfigAndContinue(@NonNull File backupFile, @NonNull Runnable continueWithoutRestore) {
+        new Thread(() -> {
+            boolean restored = restoreOpenclawBackupFile(backupFile);
+            runOnUiThread(() -> {
+                if (!restored) {
+                    Toast.makeText(this, "Failed to restore OpenClaw backup", Toast.LENGTH_SHORT).show();
+                    continueWithoutRestore.run();
+                    return;
+                }
 
-        boolean success = ConfigTemplateCache.applyTemplate(this, template);
-        if (!success) {
-            Toast.makeText(this, "Failed to apply configuration", Toast.LENGTH_SHORT).show();
-            return;
-        }
+                Toast.makeText(this, "OpenClaw config restored", Toast.LENGTH_SHORT).show();
+                ConfigTemplateCache.clearTemplate(this);
+                Intent intent = new Intent(this, DashboardActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            });
+        }).start();
+    }
 
-        Toast.makeText(this, "Configuration restored", Toast.LENGTH_SHORT).show();
-
-        // Check if Telegram is configured
-        if (template.tgBotToken != null && !template.tgBotToken.isEmpty()) {
-            // Full config restored, go to dashboard
-            Intent intent = new Intent(this, DashboardActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        } else {
-            // Partial config, jump to channel setup step
-            showSetupStep(STEP_CHANNEL);
+    @Override
+    public void onRequestPermissionsResult(
+        int requestCode,
+        @NonNull String[] permissions,
+        @NonNull int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == OPENCLAW_STORAGE_PERMISSION_REQUEST_CODE) {
+            retryPendingOpenclawStorageActionIfPermitted();
         }
     }
 
-    /**
-     * Show a specific setup step.
-     * @param step The step index to show
-     */
-    private void showSetupStep(int step) {
-        if (step >= 0 && step < STEP_COUNT) {
-            mViewPager.setCurrentItem(step, true);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == OPENCLAW_STORAGE_PERMISSION_REQUEST_CODE) {
+            retryPendingOpenclawStorageActionIfPermitted();
+        }
+    }
+
+    private void runWithOpenclawStoragePermission(@NonNull Runnable action, @NonNull Runnable deniedAction) {
+        if (PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermissionIfPathOnPrimaryExternalStorage(
+            this,
+            getOpenclawBackupDirectory().getAbsolutePath(),
+            OPENCLAW_STORAGE_PERMISSION_REQUEST_CODE,
+            true
+        )) {
+            action.run();
+            return;
+        }
+        mPendingOpenclawStorageAction = action;
+        mPendingOpenclawStorageDeniedAction = deniedAction;
+    }
+
+    private void retryPendingOpenclawStorageActionIfPermitted() {
+        Runnable action = mPendingOpenclawStorageAction;
+        Runnable deniedAction = mPendingOpenclawStorageDeniedAction;
+        mPendingOpenclawStorageAction = null;
+        mPendingOpenclawStorageDeniedAction = null;
+
+        if (action == null) {
+            return;
+        }
+
+        if (!PermissionUtils.checkStoragePermission(this, PermissionUtils.isLegacyExternalStoragePossible(this))) {
+            if (deniedAction != null) {
+                deniedAction.run();
+            }
+            return;
+        }
+
+        action.run();
+    }
+
+    private boolean restoreOpenclawBackupFile(@NonNull File backupFile) {
+        JSONObject backupPayload = readJsonFromFile(backupFile);
+        if (backupPayload == null) {
+            return false;
+        }
+
+        JSONObject openclawConfig = backupPayload.optJSONObject(OPENCLAW_BACKUP_META_OPENCLAW_CONFIG_KEY);
+        JSONObject authProfiles = backupPayload.optJSONObject(OPENCLAW_BACKUP_META_AUTH_PROFILES_KEY);
+        int restoredCount = 0;
+
+        if (openclawConfig != null && writeJsonToFile(new File(OPENCLAW_CONFIG_FILE), openclawConfig)) {
+            restoredCount++;
+        }
+        if (authProfiles != null && writeJsonToFile(new File(OPENCLAW_AUTH_PROFILES_FILE), authProfiles)) {
+            restoredCount++;
+        }
+
+        return restoredCount > 0;
+    }
+
+    @Nullable
+    private File getLatestOpenclawBackupFile() {
+        File backupDir = getOpenclawBackupDirectory();
+        if (!backupDir.exists() || !backupDir.isDirectory()) {
+            return null;
+        }
+
+        File[] candidates = backupDir.listFiles((dir, name) ->
+            name != null
+                && name.startsWith(OPENCLAW_BACKUP_FILE_PREFIX)
+                && name.endsWith(OPENCLAW_BACKUP_FILE_EXTENSION)
+        );
+
+        if (candidates == null || candidates.length == 0) {
+            return null;
+        }
+
+        Arrays.sort(candidates, Comparator.comparingLong(File::lastModified));
+        return candidates[candidates.length - 1];
+    }
+
+    private boolean writeJsonToFile(@NonNull File file, @NonNull JSONObject payload) {
+        try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                Logger.logWarn(LOG_TAG, "Failed to create parent directory: " + parent.getAbsolutePath());
+                return false;
+            }
+
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(payload.toString(2));
+            }
+
+            file.setReadable(false, false);
+            file.setReadable(true, true);
+            file.setWritable(false, false);
+            file.setWritable(true, true);
+            return true;
+        } catch (IOException | JSONException e) {
+            Logger.logWarn(LOG_TAG, "Failed to write restored OpenClaw file to " + file.getAbsolutePath() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private File getOpenclawBackupDirectory() {
+        File documentsDir = Environment.getExternalStorageDirectory();
+        return new File(documentsDir, OPENCLAW_BACKUP_DIRECTORY);
+    }
+
+    @Nullable
+    private JSONObject readJsonFromFile(@NonNull File file) {
+        if (!file.exists()) {
+            return null;
+        }
+
+        try (FileReader reader = new FileReader(file)) {
+            StringBuilder sb = new StringBuilder();
+            char[] buffer = new char[1024];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                sb.append(buffer, 0, read);
+            }
+            return new JSONObject(sb.toString());
+        } catch (IOException | org.json.JSONException e) {
+            Logger.logWarn(LOG_TAG, "Failed to read JSON backup from " + file.getAbsolutePath() + ": " + e.getMessage());
+            return null;
         }
     }
 

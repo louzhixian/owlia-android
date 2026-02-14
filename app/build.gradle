@@ -173,6 +173,7 @@ def validateVersionName(String versionName) {
 def downloadBootstrap(String arch) {
     def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
     def file = new File(projectDir, localUrl)
+    def downloadedFile = file
 
     // Skip if already downloaded (e.g., by CI workflow)
     if (file.exists() && file.length() > 0) {
@@ -180,16 +181,51 @@ def downloadBootstrap(String arch) {
         return
     }
 
-    def remoteUrl = "https://github.com/zhixianio/botdrop-packages/releases/latest/download/bootstrap-" + arch + ".zip"
-    logger.quiet("Downloading " + remoteUrl + " ...")
+    def remoteUrls = [
+        "https://github.com/zhixianio/botdrop-packages/releases/latest/download/bootstrap-" + arch + ".zip",
+        "https://github.com/zhixianio/botdrop-packages/releases/latest/download/botdrop-repo-" + arch + ".zip"
+    ]
 
     file.parentFile.mkdirs()
-    def out = new BufferedOutputStream(new FileOutputStream(file))
+    boolean downloaded = false
+    for (remoteUrl in remoteUrls) {
+        try {
+            logger.quiet("Downloading " + remoteUrl + " ...")
+            def tmpFile = file
+            if (!remoteUrl.endsWith(file.name)) {
+                tmpFile = new File(projectDir, "src/main/cpp/" + remoteUrl.tokenize('/').last())
+            }
 
-    def connection = new URL(remoteUrl).openConnection()
-    connection.setInstanceFollowRedirects(true)
-    out << connection.inputStream
-    out.close()
+            def connection = new URL(remoteUrl).openConnection()
+            connection.setInstanceFollowRedirects(true)
+            if (connection.responseCode != 200) {
+                logger.quiet("Download returned HTTP " + connection.responseCode + " from " + remoteUrl)
+                continue
+            }
+
+            def out = new BufferedOutputStream(new FileOutputStream(tmpFile))
+            out << connection.inputStream
+            out.close()
+
+            if (tmpFile != file && tmpFile.name != file.name) {
+                downloadedFile = tmpFile
+            }
+
+            if (downloadedFile != file) {
+                logger.quiet("Renaming downloaded asset '" + downloadedFile.name + "' to '" + file.name + "'")
+                downloadedFile.renameTo(file)
+            }
+
+            downloaded = true
+            break
+        } catch (Exception e) {
+            logger.quiet("Download attempt failed for " + remoteUrl + ": " + e.getMessage())
+        }
+    }
+
+    if (!downloaded) {
+        throw new GradleException("Failed to download bootstrap package for " + arch + " from any known asset URL")
+    }
 
     logger.quiet("Downloaded bootstrap-" + arch + ".zip successfully")
 }

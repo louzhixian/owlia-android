@@ -63,29 +63,56 @@
         </LinearLayout>
 
         <!-- Header -->
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingTop="16dp"
-            android:paddingBottom="16dp">
+            android:gravity="center_vertical"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
 
-            <ImageView
+            <ImageButton
+                android:id="@+id/btn_back_to_agent_selection"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/botdrop_logo"
-                android:contentDescription="BotDrop"
-                android:layout_marginEnd="8dp" />
+                android:src="@drawable/ic_back_chevron"
+                android:contentDescription="Back"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="@color/botdrop_accent"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:padding="0dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="16dp" />
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="BotDrop"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/botdrop_on_background" />
-        </LinearLayout>
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/botdrop_logo"
+                    android:contentDescription="BotDrop"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="BotDrop"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/botdrop_on_background" />
+            </LinearLayout>
+        </RelativeLayout>
 
         <!-- Gateway Status Card -->
         <LinearLayout
@@ -130,6 +157,55 @@
                     android:text="—"
                     android:textSize="14sp"
                     android:textColor="@color/botdrop_secondary_text" />
+
+                <!-- OpenClaw version + check button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/openclaw_version_text"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="13sp"
+                        android:textColor="@color/botdrop_secondary_text" />
+
+                    <TextView
+                        android:id="@+id/btn_check_openclaw_update"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Check for updates"
+                        android:textSize="13sp"
+                        android:textColor="@color/botdrop_accent"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="0dp" />
+
+                    <TextView
+                        android:id="@+id/btn_view_openclaw_log"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="View log"
+                        android:textSize="13sp"
+                        android:textColor="@color/botdrop_accent"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="0dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btn_open_openclaw_web_ui"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Open Web UI"
+                    android:textSize="13sp"
+                    android:textColor="@color/botdrop_accent"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp" />
+
         </LinearLayout>
 
         <!-- Startup Notice -->
@@ -200,6 +276,9 @@
                     android:id="@+id/telegram_channel_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:paddingVertical="4dp">
@@ -335,6 +414,35 @@
             android:background="@drawable/botdrop_button_bg"
             android:textColor="#1A1A1A"
             android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btn_backup_openclaw_config"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Backup"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:textColor="@color/botdrop_accent" />
+
+            <Button
+                android:id="@+id/btn_restore_openclaw_config"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Restore"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:textColor="@color/botdrop_accent" />
+        </LinearLayout>
 
         <!-- Guidance Card -->
         <LinearLayout

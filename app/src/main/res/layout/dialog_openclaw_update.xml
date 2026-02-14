@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Step 0: Stop gateway -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/update_step_0_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="○"
+            android:textSize="18sp"
+            android:textColor="@color/botdrop_accent"
+            android:gravity="center"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/update_step_0_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stopping gateway"
+            android:textSize="14sp"
+            android:textColor="@color/botdrop_on_background" />
+    </LinearLayout>
+
+    <!-- Step 1: Install update -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/update_step_1_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="○"
+            android:textSize="18sp"
+            android:textColor="@color/botdrop_accent"
+            android:gravity="center"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/update_step_1_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Installing update"
+            android:textSize="14sp"
+            android:textColor="@color/botdrop_on_background" />
+    </LinearLayout>
+
+    <!-- Step 2: Finalize -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/update_step_2_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="○"
+            android:textSize="18sp"
+            android:textColor="@color/botdrop_accent"
+            android:gravity="center"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/update_step_2_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Finalizing"
+            android:textSize="14sp"
+            android:textColor="@color/botdrop_on_background" />
+    </LinearLayout>
+
+    <!-- Step 3: Start gateway -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/update_step_3_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="○"
+            android:textSize="18sp"
+            android:textColor="@color/botdrop_accent"
+            android:gravity="center"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/update_step_3_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Starting gateway"
+            android:textSize="14sp"
+            android:textColor="@color/botdrop_on_background" />
+    </LinearLayout>
+
+    <!-- Step 4: Refresh model list cache -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/update_step_4_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="○"
+            android:textSize="18sp"
+            android:textColor="@color/botdrop_accent"
+            android:gravity="center"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/update_step_4_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Refreshing model list"
+            android:textSize="14sp"
+            android:textColor="@color/botdrop_on_background" />
+    </LinearLayout>
+
+    <!-- Status message -->
+    <TextView
+        android:id="@+id/update_status_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="This may take a few minutes"
+        android:textSize="13sp"
+        android:textColor="@color/botdrop_secondary_text"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

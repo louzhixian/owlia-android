@@ -133,6 +133,18 @@
             android:textColor="#1A1A1A"
             android:textStyle="bold" />
 
+        <Button
+            android:id="@+id/channel_skip_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Skip for now"
+            android:textSize="14sp"
+            android:padding="14dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:textColor="@color/botdrop_accent"
+            android:textStyle="bold" />
+
         <!-- Error message -->
         <TextView
             android:id="@+id/channel_error_message"

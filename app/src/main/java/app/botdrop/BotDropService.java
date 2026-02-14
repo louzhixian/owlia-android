@@ -28,6 +28,7 @@ public class BotDropService extends Service {
     private final IBinder mBinder = new LocalBinder();
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
     private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private volatile boolean mUpdateInProgress = false;
 
     public class LocalBinder extends Binder {
         public BotDropService getService() {
@@ -86,6 +87,15 @@ public class BotDropService extends Service {
     }
 
     /**
+     * Callback for OpenClaw update progress
+     */
+    public interface UpdateProgressCallback {
+        void onStepStart(String message);
+        void onError(String error);
+        void onComplete(String newVersion);
+    }
+
+    /**
      * Callback for installation progress
      */
     public interface InstallProgressCallback {
@@ -106,9 +116,16 @@ public class BotDropService extends Service {
     }
 
     /**
-     * Execute a shell command synchronously
+     * Execute a shell command synchronously with default 60-second timeout
      */
     private CommandResult executeCommandSync(String command) {
+        return executeCommandSync(command, 60);
+    }
+
+    /**
+     * Execute a shell command synchronously with configurable timeout
+     */
+    private CommandResult executeCommandSync(String command, int timeoutSeconds) {
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
         int exitCode = -1;
@@ -163,12 +180,12 @@ public class BotDropService extends Service {
             }
 
             // Wait with timeout to prevent hanging indefinitely
-            boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+            boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                Logger.logError(LOG_TAG, "Command timeout after 60 seconds");
+                Logger.logError(LOG_TAG, "Command timeout after " + timeoutSeconds + " seconds");
                 return new CommandResult(false, stdout.toString(),
-                    "Command timeout after 60 seconds", -1);
+                    "Command timeout after " + timeoutSeconds + " seconds", -1);
             }
 
             exitCode = process.exitValue();
@@ -511,6 +528,287 @@ public class BotDropService extends Service {
             "else echo '—'; fi; " +
             "else echo '—'; fi";
         executeCommand(cmd, callback);
+    }
+
+    /**
+     * Whether an OpenClaw update is currently in progress.
+     * Checked by GatewayMonitorService to suppress auto-restart during updates.
+     */
+    public boolean isUpdateInProgress() {
+        return mUpdateInProgress;
+    }
+
+    /**
+     * Update OpenClaw to the specified version from npm.
+     * Stops the gateway, runs npm install, recreates the Android-specific wrapper,
+     * and restarts the gateway. Reports progress via callback on the main thread.
+     *
+     * Must run on mExecutor — calls executeCommandSync directly to avoid deadlock
+     * (the public stopGateway/startGateway methods also post to mExecutor).
+     */
+    public void updateOpenclaw(String targetVersion, UpdateProgressCallback callback) {
+        final String packageVersion = normalizeOpenclawVersion(targetVersion);
+        final java.util.concurrent.atomic.AtomicBoolean notified = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        mExecutor.execute(() -> {
+            mUpdateInProgress = true;
+            try {
+                // Step 1: Stop gateway
+                Logger.logInfo(LOG_TAG, "Update: stopping gateway");
+                notifyUpdateStep(callback, "Stopping gateway...");
+                String stopCmd = buildStopGatewayScript();
+                CommandResult stopResult = executeCommandSync(stopCmd, 60);
+                if (!stopResult.success) {
+                    // Non-fatal — gateway may not be running
+                    Logger.logWarn(LOG_TAG, "Gateway stop returned non-zero: " + stopResult.stdout);
+                }
+                Thread.sleep(2000);
+
+                // Step 2: npm install
+                Logger.logInfo(LOG_TAG, "Update: running npm install");
+                notifyUpdateStep(callback, "Installing update...");
+                String prefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH;
+                String safePackage = shellQuoteSingle(packageVersion);
+                String npmCmd =
+                    "export PREFIX=" + prefix + "\n" +
+                    "export HOME=" + TermuxConstants.TERMUX_HOME_DIR_PATH + "\n" +
+                    "export PATH=$PREFIX/bin:$PATH\n" +
+                    "export TMPDIR=$PREFIX/tmp\n" +
+                    "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem\n" +
+                    "export NODE_OPTIONS=--dns-result-order=ipv4first\n" +
+                    "npm install -g " + safePackage + " --ignore-scripts --force 2>&1\n";
+                CommandResult npmResult = executeCommandSync(npmCmd, 300);
+                if (!npmResult.success) {
+                    String tail = extractTail(npmResult.stdout, 15);
+                    String error = "npm install failed (exit " + npmResult.exitCode + ")\n" + tail;
+                    Logger.logError(LOG_TAG, "Update npm install failed: " + error);
+                    notifyUpdateError(callback, notified, error);
+                    return;
+                }
+
+                // Step 3: Recreate the Android-specific wrapper
+                // npm install overwrites $PREFIX/bin/openclaw with its own shim which
+                // doesn't work on Android/proot. We must recreate the custom wrapper.
+                Logger.logInfo(LOG_TAG, "Update: recreating openclaw wrapper");
+                notifyUpdateStep(callback, "Finalizing...");
+                String binPrefix = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH;
+                String wrapperCmd =
+                    "export PREFIX=" + prefix + "\n" +
+                    "cat > $PREFIX/bin/openclaw <<'BOTDROP_OPENCLAW_WRAPPER'\n" +
+                    "#!" + binPrefix + "/bash\n" +
+                    "PREFIX=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\n" +
+                    "ENTRY=\"\"\n" +
+                    "for CANDIDATE in \\\n" +
+                    "  \"$PREFIX/lib/node_modules/openclaw/dist/cli.js\" \\\n" +
+                    "  \"$PREFIX/lib/node_modules/openclaw/bin/openclaw.js\" \\\n" +
+                    "  \"$PREFIX/lib/node_modules/openclaw/dist/index.js\"; do\n" +
+                    "  if [ -f \"$CANDIDATE\" ]; then\n" +
+                    "    ENTRY=\"$CANDIDATE\"\n" +
+                    "    break\n" +
+                    "  fi\n" +
+                    "done\n" +
+                    "if [ -z \"$ENTRY\" ]; then\n" +
+                    "  echo \"openclaw entrypoint not found under $PREFIX/lib/node_modules/openclaw\" >&2\n" +
+                    "  exit 127\n" +
+                    "fi\n" +
+                    "export SSL_CERT_FILE=\"$PREFIX/etc/tls/cert.pem\"\n" +
+                    "export NODE_OPTIONS=\"--dns-result-order=ipv4first\"\n" +
+                    "exec \"$PREFIX/bin/termux-chroot\" \"$PREFIX/bin/node\" \"$ENTRY\" \"$@\"\n" +
+                    "BOTDROP_OPENCLAW_WRAPPER\n" +
+                    "chmod 755 $PREFIX/bin/openclaw\n" +
+                    "echo done\n";
+                CommandResult wrapperResult = executeCommandSync(wrapperCmd, 30);
+                if (!wrapperResult.success) {
+                    Logger.logError(LOG_TAG, "Update: failed to recreate wrapper");
+                    notifyUpdateError(callback, notified, "Failed to recreate openclaw wrapper");
+                    return;
+                }
+
+                // Step 4: Start gateway
+                Logger.logInfo(LOG_TAG, "Update: starting gateway");
+                notifyUpdateStep(callback, "Starting gateway...");
+                BotDropConfig.sanitizeLegacyConfig();
+                String startCmd = buildStartGatewayScript();
+                CommandResult startResult = executeCommandSync(startCmd, 60);
+
+                String newVersion = getOpenclawVersion();
+                String versionStr = newVersion != null ? newVersion : "unknown";
+
+                if (startResult.success) {
+                    Logger.logInfo(LOG_TAG, "Update complete, new version: " + versionStr);
+                    notifyUpdateComplete(callback, notified, versionStr);
+                } else {
+                    Logger.logWarn(LOG_TAG, "Update complete but gateway restart failed");
+                    String tail = extractTail(startResult.stdout, 20);
+                    notifyUpdateError(callback, notified,
+                        "Gateway restart failed (exit " + startResult.exitCode + "):\n" + tail);
+                }
+
+            } catch (InterruptedException e) {
+                Logger.logError(LOG_TAG, "Update interrupted: " + e.getMessage());
+                notifyUpdateError(callback, notified, "Update interrupted");
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Update failed: " + e.getMessage());
+                notifyUpdateError(callback, notified, "Update failed: " + e.getMessage());
+            } finally {
+                mUpdateInProgress = false;
+            }
+        });
+    }
+
+    /**
+     * Build the stop-gateway shell script (same logic as stopGateway but returns the string
+     * instead of executing it, so it can be used from within updateOpenclaw on mExecutor).
+     */
+    private String buildStopGatewayScript() {
+        return "PID=''\n" +
+            "if [ -f " + GATEWAY_PID_FILE + " ]; then PID=$(cat " + GATEWAY_PID_FILE + " 2>/dev/null || true); fi\n" +
+            "rm -f " + GATEWAY_PID_FILE + "\n" +
+            "if [ -n \"$PID\" ]; then\n" +
+            "  kill \"$PID\" 2>/dev/null || true\n" +
+            "  pkill -TERM -P \"$PID\" 2>/dev/null || true\n" +
+            "fi\n" +
+            "pkill -TERM -f \"openclaw.*gateway\" 2>/dev/null || true\n" +
+            "sleep 1\n" +
+            "pkill -9 -f \"openclaw.*gateway\" 2>/dev/null || true\n" +
+            "echo stopped\n";
+    }
+
+    private String normalizeOpenclawVersion(String targetVersion) {
+        if (targetVersion == null) {
+            return "openclaw@latest";
+        }
+
+        String trimmed = targetVersion.trim();
+        if (trimmed.isEmpty() || "openclaw".equals(trimmed) || "latest".equals(trimmed)) {
+            return "openclaw@latest";
+        }
+
+        if (trimmed.startsWith("openclaw@")) {
+            return trimmed;
+        }
+        return "openclaw@" + trimmed;
+    }
+
+    private String shellQuoteSingle(String value) {
+        if (value == null) {
+            return "''";
+        }
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private void notifyUpdateStep(UpdateProgressCallback callback, String message) {
+        if (callback == null) {
+            return;
+        }
+        mHandler.post(() -> {
+            try {
+                callback.onStepStart(message);
+            } catch (Throwable e) {
+                Logger.logWarn(LOG_TAG, "Update progress callback failed: " + e.getMessage());
+            }
+        });
+    }
+
+    private void notifyUpdateError(
+        UpdateProgressCallback callback,
+        java.util.concurrent.atomic.AtomicBoolean notified,
+        String error
+    ) {
+        if (callback == null || !notified.compareAndSet(false, true)) {
+            return;
+        }
+        mHandler.post(() -> {
+            try {
+                callback.onError(error);
+            } catch (Throwable e) {
+                Logger.logWarn(LOG_TAG, "Update error callback failed: " + e.getMessage());
+            }
+        });
+    }
+
+    private void notifyUpdateComplete(
+        UpdateProgressCallback callback,
+        java.util.concurrent.atomic.AtomicBoolean notified,
+        String version
+    ) {
+        if (callback == null || !notified.compareAndSet(false, true)) {
+            return;
+        }
+        mHandler.post(() -> {
+            try {
+                callback.onComplete(version);
+            } catch (Throwable e) {
+                Logger.logWarn(LOG_TAG, "Update complete callback failed: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Build the start-gateway shell script (same logic as startGateway but returns the string
+     * instead of executing it, so it can be used from within updateOpenclaw on mExecutor).
+     */
+    private String buildStartGatewayScript() {
+        String logDir = TermuxConstants.TERMUX_HOME_DIR_PATH + "/.openclaw";
+        String debugLog = logDir + "/gateway-debug.log";
+        String home = TermuxConstants.TERMUX_HOME_DIR_PATH;
+        String prefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH;
+        return "mkdir -p " + logDir + "\n" +
+            "exec 2>" + debugLog + "\n" +
+            "set -x\n" +
+            "echo \"date: $(date)\" >&2\n" +
+            "echo \"id: $(id)\" >&2\n" +
+            "echo \"PATH=$PATH\" >&2\n" +
+            "pgrep -x sshd || sshd || true\n" +
+            "pkill -f \"openclaw.*gateway\" 2>/dev/null || true\n" +
+            "if [ -f " + GATEWAY_PID_FILE + " ]; then\n" +
+            "  kill $(cat " + GATEWAY_PID_FILE + ") 2>/dev/null\n" +
+            "  rm -f " + GATEWAY_PID_FILE + "\n" +
+            "  sleep 1\n" +
+            "fi\n" +
+            "sleep 1\n" +
+            "echo '' > " + GATEWAY_LOG_FILE + "\n" +
+            "export HOME=" + home + "\n" +
+            "export PREFIX=" + prefix + "\n" +
+            "export PATH=$PREFIX/bin:$PATH\n" +
+            "export TMPDIR=$PREFIX/tmp\n" +
+            "export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem\n" +
+            "export NODE_OPTIONS=--dns-result-order=ipv4first\n" +
+            "echo \"=== Environment before chroot ===\" >&2\n" +
+            "echo \"SSL_CERT_FILE=$SSL_CERT_FILE\" >&2\n" +
+            "echo \"NODE_OPTIONS=$NODE_OPTIONS\" >&2\n" +
+            "echo \"Testing cert file access:\" >&2\n" +
+            "ls -lh $PREFIX/etc/tls/cert.pem >&2 || echo \"cert.pem not found!\" >&2\n" +
+            "openclaw gateway run --force >> " + GATEWAY_LOG_FILE + " 2>&1 &\n" +
+            "GW_PID=$!\n" +
+            "echo $GW_PID > " + GATEWAY_PID_FILE + "\n" +
+            "echo \"gateway pid: $GW_PID\" >&2\n" +
+            "sleep 3\n" +
+            "if kill -0 $GW_PID 2>/dev/null; then\n" +
+            "  echo started\n" +
+            "else\n" +
+            "  echo \"gateway died, log:\" >&2\n" +
+            "  cat " + GATEWAY_LOG_FILE + " >&2\n" +
+            "  rm -f " + GATEWAY_PID_FILE + "\n" +
+            "  cat " + GATEWAY_LOG_FILE + "\n" +
+            "  echo '---'\n" +
+            "  cat " + debugLog + "\n" +
+            "  exit 1\n" +
+            "fi\n";
+    }
+
+    /**
+     * Extract the last N lines from a string for error reporting.
+     */
+    private static String extractTail(String text, int maxLines) {
+        if (text == null || text.isEmpty()) return "";
+        String[] lines = text.split("\n");
+        int start = Math.max(0, lines.length - maxLines);
+        StringBuilder sb = new StringBuilder();
+        for (int i = start; i < lines.length; i++) {
+            sb.append(lines[i]).append("\n");
+        }
+        return sb.toString();
     }
 
 }

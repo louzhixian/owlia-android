@@ -3,92 +3,161 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/botdrop_background">
+    android:padding="14dp"
+    android:background="@android:color/transparent">
 
-    <!-- Top bar with title and close button -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical"
-        android:background="@color/botdrop_surface">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Select Model"
-            android:textSize="20sp"
-            android:textColor="@color/botdrop_on_background"
-            android:fontFamily="sans-serif-medium" />
-
-        <ImageButton
-            android:id="@+id/model_close_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Close"
-            android:tint="@color/botdrop_on_background" />
-
-    </LinearLayout>
-
-    <!-- Content area with padding -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:background="@drawable/botdrop_card_bg">
 
-        <!-- Search box -->
-        <EditText
-            android:id="@+id/model_search"
+        <!-- Top bar -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:hint="Search models..."
-            android:textColor="@color/botdrop_on_background"
-            android:textColorHint="@color/botdrop_secondary_text"
-            android:background="@drawable/edit_text_background"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Model list (fills remaining space) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/model_list"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:visibility="gone" />
-
-        <!-- Status message (fills remaining space) -->
-        <TextView
-            android:id="@+id/model_status"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:text="Loading models..."
-            android:textColor="@color/botdrop_secondary_text"
-            android:gravity="center"
-            android:visibility="visible" />
-
-        <!-- Retry button -->
-        <Button
-            android:id="@+id/model_retry"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Retry"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:background="@drawable/botdrop_button_bg"
-            android:textColor="@color/botdrop_background"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:layout_marginTop="8dp" />
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="12dp"
+            android:gravity="center_vertical">
 
+            <ImageButton
+                android:id="@+id/model_back_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_media_previous"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:tint="@color/botdrop_accent"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
+
+                <TextView
+                    android:id="@+id/model_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Model"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/botdrop_on_background"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/model_step_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Step 1"
+                    android:textSize="12sp"
+                    android:textColor="@color/botdrop_secondary_text"
+                    android:layout_marginTop="2dp" />
+
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/model_close_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:tint="@color/botdrop_on_background" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/botdrop_surface"
+            android:alpha="0.45" />
+
+        <!-- Content area with padding -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+            <!-- Search box -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/edit_text_background"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:tint="@color/botdrop_secondary_text"
+                    android:contentDescription="Search" />
+
+                <EditText
+                    android:id="@+id/model_search"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:hint="Search models..."
+                    android:textColor="@color/botdrop_on_background"
+                    android:textColorHint="@color/botdrop_secondary_text"
+                    android:background="@android:color/transparent"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+            <!-- Model list (fills remaining space) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/model_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:visibility="gone"
+                android:clipToPadding="false"
+                android:paddingBottom="4dp" />
+
+            <!-- Status message (fills remaining space) -->
+            <TextView
+                android:id="@+id/model_status"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:text="Loading models..."
+                android:textSize="14sp"
+                android:textColor="@color/botdrop_secondary_text"
+                android:gravity="center"
+                android:visibility="visible" />
+
+            <!-- Retry button -->
+            <Button
+                android:id="@+id/model_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Retry"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                android:background="@drawable/botdrop_button_bg"
+                android:textColor="@color/botdrop_background"
+                android:textStyle="bold"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>
