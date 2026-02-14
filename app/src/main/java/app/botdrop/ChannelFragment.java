@@ -18,11 +18,14 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
 import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.Fragment;
 
 import com.termux.R;
 import com.termux.shared.logger.Logger;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Step 3 of setup: Channel setup (simplified)
@@ -43,6 +46,7 @@ public class ChannelFragment extends Fragment {
     private Button mConnectButton;
     private Button mSkipButton;
     private TextView mErrorMessage;
+    private boolean mHasExistingTelegramConfig;
 
     private BotDropService mService;
     private boolean mBound = false;
@@ -85,7 +89,9 @@ public class ChannelFragment extends Fragment {
         // Setup click handlers
         mOpenSetupBotButton.setOnClickListener(v -> openSetupBot());
         mConnectButton.setOnClickListener(v -> connect());
-        mSkipButton.setOnClickListener(v -> skipSetup());
+
+        preloadExistingTelegramConfig();
+        configureSkipAction();
 
         Logger.logDebug(LOG_TAG, "ChannelFragment view created");
     }
@@ -177,6 +183,68 @@ public class ChannelFragment extends Fragment {
         startGateway();
     }
 
+    private void preloadExistingTelegramConfig() {
+        mHasExistingTelegramConfig = false;
+        try {
+            JSONObject config = BotDropConfig.readConfig();
+            JSONObject channels = config != null ? config.optJSONObject("channels") : null;
+            if (channels == null) {
+                return;
+            }
+
+            JSONObject telegram = channels.optJSONObject("telegram");
+            if (telegram == null) {
+                return;
+            }
+
+            String token = telegram.optString("botToken", null);
+            String userId = extractUserIdFromAllowFrom(telegram);
+
+            if (!TextUtils.isEmpty(token) || !TextUtils.isEmpty(userId)) {
+                mHasExistingTelegramConfig = true;
+            }
+
+            if (!TextUtils.isEmpty(token)) {
+                mTokenInput.setText(token.trim());
+            }
+            if (!TextUtils.isEmpty(userId)) {
+                mUserIdInput.setText(userId.trim());
+            }
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to preload telegram config: " + e.getMessage());
+        }
+    }
+
+    private void configureSkipAction() {
+        if (mSkipButton == null) {
+            return;
+        }
+
+        if (mHasExistingTelegramConfig) {
+            mSkipButton.setText("Cancel");
+            mSkipButton.setOnClickListener(v -> finishChannelSetup());
+        } else {
+            mSkipButton.setOnClickListener(v -> skipSetup());
+        }
+    }
+
+    private String extractUserIdFromAllowFrom(JSONObject telegram) {
+        Object allowFrom = telegram.opt("allowFrom");
+        if (allowFrom instanceof String) {
+            return (String) allowFrom;
+        }
+
+        if (allowFrom instanceof JSONArray) {
+            JSONArray ids = (JSONArray) allowFrom;
+            if (ids.length() > 0) {
+                Object first = ids.opt(0);
+                return first != null ? String.valueOf(first) : null;
+            }
+        }
+
+        return null;
+    }
+
     private void startGateway() {
         if (!mBound || mService == null) {
             showError("Service not ready, please try again");
@@ -248,8 +316,15 @@ public class ChannelFragment extends Fragment {
     }
 
     private void showError(String message) {
-        mErrorMessage.setText(message);
-        mErrorMessage.setVisibility(View.VISIBLE);
+            mErrorMessage.setText(message);
+            mErrorMessage.setVisibility(View.VISIBLE);
+    }
+
+    private void finishChannelSetup() {
+        if (!isAdded() || getActivity() == null || getActivity().isFinishing()) {
+            return;
+        }
+        getActivity().finish();
     }
 
     private void resetButton() {

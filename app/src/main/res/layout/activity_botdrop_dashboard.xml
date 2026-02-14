@@ -275,6 +275,9 @@
                     android:id="@+id/telegram_channel_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:paddingVertical="4dp">

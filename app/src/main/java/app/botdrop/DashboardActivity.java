@@ -101,6 +101,7 @@ public class DashboardActivity extends Activity {
     private View mStatusIndicator;
     private TextView mTelegramStatus;
     private TextView mDiscordStatus;
+    private View mTelegramChannelRow;
     private Button mStartButton;
     private Button mStopButton;
     private Button mRestartButton;
@@ -180,6 +181,7 @@ public class DashboardActivity extends Activity {
         mStatusIndicator = findViewById(R.id.status_indicator);
         mTelegramStatus = findViewById(R.id.telegram_status);
         mDiscordStatus = findViewById(R.id.discord_status);
+        mTelegramChannelRow = findViewById(R.id.telegram_channel_row);
         mStartButton = findViewById(R.id.btn_start);
         mStopButton = findViewById(R.id.btn_stop);
         mRestartButton = findViewById(R.id.btn_restart);
@@ -220,6 +222,9 @@ public class DashboardActivity extends Activity {
         mOpenclawWebUiButton = findViewById(R.id.btn_open_openclaw_web_ui);
         if (mOpenclawWebUiButton != null) {
             mOpenclawWebUiButton.setOnClickListener(v -> openOpenclawWebUi());
+        }
+        if (mTelegramChannelRow != null) {
+            mTelegramChannelRow.setOnClickListener(v -> openTelegramChannelConfig());
         }
 
         // Load channel info
@@ -428,6 +433,12 @@ public class DashboardActivity extends Activity {
             button.setAlpha(0.5f);
             button.setTextColor(ContextCompat.getColor(this, R.color.botdrop_secondary_text));
         }
+    }
+
+    private void openTelegramChannelConfig() {
+        Intent intent = new Intent(this, SetupActivity.class);
+        intent.putExtra(SetupActivity.EXTRA_START_STEP, SetupActivity.STEP_CHANNEL);
+        startActivity(intent);
     }
 
     private void showUpdateBanner(String latestVersion, String downloadUrl) {
