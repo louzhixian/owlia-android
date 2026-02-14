@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/botdrop_dialog_card_bg"
+    android:padding="16dp">
+
+        <TextView
+            android:id="@+id/openclaw_log_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="OpenClaw Gateway Log"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/botdrop_on_background"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/botdrop_accent"
+            android:alpha="0.25"
+            android:layout_marginBottom="12dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="280dp"
+            android:fillViewport="true"
+            android:scrollbars="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/openclaw_log_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="@color/botdrop_on_background"
+                android:textSize="11sp"
+                android:textIsSelectable="true"
+                android:lineSpacingExtra="2sp"
+                android:padding="12dp" />
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="end">
+
+            <Button
+                android:id="@+id/openclaw_log_copy_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/botdrop_button_bg"
+                android:text="Copy"
+                android:textAllCaps="false"
+                android:textColor="#1A1A1A"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/openclaw_log_close_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:text="Close"
+                android:textAllCaps="false"
+                android:textColor="@color/botdrop_accent" />
+        </LinearLayout>
+    </LinearLayout>

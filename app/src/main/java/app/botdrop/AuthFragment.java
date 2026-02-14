@@ -26,6 +26,7 @@ import com.termux.R;
 import com.termux.shared.logger.Logger;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Single-page auth step:
@@ -43,6 +44,8 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
     private LinearLayout mKeySection;
     private TextView mKeyLabel;
     private EditText mKeyInput;
+    private LinearLayout mBaseUrlSection;
+    private TextView mBaseUrlLabel;
     private ImageButton mToggleVisibility;
     private LinearLayout mStatusContainer;
     private TextView mStatusText;
@@ -51,6 +54,9 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
     private ProviderInfo mSelectedProvider;
     private String mSelectedModel = null; // provider/model
     private boolean mPasswordVisible = false;
+    private EditText mBaseUrlInput;
+    private List<String> mCurrentCustomModels;
+    private String mSelectedProviderBaseUrl;
 
     private BotDropService mService;
     private boolean mBound = false;
@@ -86,10 +92,15 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
         mKeySection = view.findViewById(R.id.auth_key_section);
         mKeyLabel = view.findViewById(R.id.auth_key_label);
         mKeyInput = view.findViewById(R.id.auth_key_input);
+        mBaseUrlSection = view.findViewById(R.id.auth_base_url_section);
+        mBaseUrlLabel = view.findViewById(R.id.auth_base_url_label);
+        mBaseUrlInput = view.findViewById(R.id.auth_base_url_input);
         mToggleVisibility = view.findViewById(R.id.auth_key_toggle_visibility);
         mStatusContainer = view.findViewById(R.id.auth_key_status_container);
         mStatusText = view.findViewById(R.id.auth_key_status_text);
         mVerifyButton = view.findViewById(R.id.auth_key_verify_button);
+
+        updateBaseUrlSectionVisibility(false);
 
         mSelectButton.setOnClickListener(v -> openModelSelector());
         mToggleVisibility.setOnClickListener(v -> togglePasswordVisibility());
@@ -146,9 +157,8 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
     }
 
     private void openModelSelector() {
-        // Model dialog now reads static asset; service can be null.
-        ModelSelectorDialog dialog = new ModelSelectorDialog(requireContext(), mService, false);
-        dialog.show((provider, model, apiKey) -> {
+        ModelSelectorDialog dialog = new ModelSelectorDialog(requireContext(), mService, true);
+        dialog.show((provider, model, apiKey, baseUrl, availableModels) -> {
             if (provider == null || model == null) {
                 Logger.logInfo(LOG_TAG, "Model selection cancelled");
                 return;
@@ -158,9 +168,24 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
             mSelectedModel = fullModel;
             mSelectedProvider = findProviderById(provider);
             mModelText.setText(fullModel);
+            mCurrentCustomModels = availableModels;
+            mSelectedProviderBaseUrl = normalizeCustomBaseUrl(!TextUtils.isEmpty(baseUrl) ? baseUrl : BotDropConfig.getBaseUrl(provider));
+
+            boolean isCustomProvider = !TextUtils.isEmpty(mSelectedProviderBaseUrl);
+            updateBaseUrlSectionVisibility(isCustomProvider);
 
             mKeySection.setVisibility(View.VISIBLE);
             mKeyInput.setText("");
+            if (!TextUtils.isEmpty(apiKey)) {
+                mKeyInput.setText(apiKey);
+            }
+            mBaseUrlInput.setText("");
+            if (isCustomProvider) {
+                mBaseUrlInput.setText(!TextUtils.isEmpty(mSelectedProviderBaseUrl) ? mSelectedProviderBaseUrl : "");
+            } else {
+                mSelectedProviderBaseUrl = null;
+                mCurrentCustomModels = null;
+            }
             mStatusContainer.setVisibility(View.GONE);
             mKeyLabel.setText("API Key");
 
@@ -191,6 +216,37 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
         );
     }
 
+    private void updateBaseUrlSectionVisibility(boolean visible) {
+        if (mBaseUrlSection != null) {
+            mBaseUrlSection.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+        if (mBaseUrlLabel != null) {
+            mBaseUrlLabel.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+        if (mBaseUrlInput != null) {
+            mBaseUrlInput.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+        if (!visible && mBaseUrlInput != null) {
+            mBaseUrlInput.setText("");
+        }
+    }
+
+    private String normalizeCustomBaseUrl(String baseUrl) {
+        if (TextUtils.isEmpty(baseUrl)) {
+            return "";
+        }
+
+        String normalized = baseUrl.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private boolean isCustomProvider() {
+        return !TextUtils.isEmpty(mSelectedProviderBaseUrl);
+    }
+
     private void togglePasswordVisibility() {
         mPasswordVisible = !mPasswordVisible;
         if (mPasswordVisible) {
@@ -208,6 +264,20 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
         }
 
         String credential = mKeyInput.getText().toString().trim();
+        String baseUrl = null;
+        if (isCustomProvider()) {
+            baseUrl = mBaseUrlInput == null ? null : normalizeCustomBaseUrl(mBaseUrlInput.getText().toString());
+            String selectedBaseUrl = normalizeCustomBaseUrl(mSelectedProviderBaseUrl);
+            if (!TextUtils.equals(baseUrl, selectedBaseUrl)) {
+                showStatus("Base URL changed; please reselect the provider and model.", false);
+                return;
+            }
+
+            if (TextUtils.isEmpty(baseUrl)) {
+                showStatus("Please enter custom base URL", false);
+                return;
+            }
+        }
         if (TextUtils.isEmpty(credential)) {
             showStatus("Please enter your api key", false);
             return;
@@ -222,11 +292,12 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
         mVerifyButton.setText("Verifying...");
         showStatus("Verifying credentials...", true);
 
-        saveCredentials(credential);
+        saveCredentials(credential, baseUrl);
     }
 
-    private void saveCredentials(String credential) {
+    private void saveCredentials(String credential, String baseUrl) {
         String providerId = mSelectedProvider.getId();
+        boolean isCustomProvider = isCustomProvider() && !TextUtils.isEmpty(baseUrl);
 
         String modelToUse;
         if (mSelectedModel != null && !mSelectedModel.isEmpty()) {
@@ -238,10 +309,19 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
 
         Logger.logInfo(LOG_TAG, "Saving credentials for provider: " + providerId + ", model: " + modelToUse);
         String fullModel = providerId + "/" + modelToUse;
-        boolean keyWritten = BotDropConfig.setApiKey(providerId, modelToUse, credential);
-        boolean providerWritten = BotDropConfig.setProvider(providerId, modelToUse);
+        if (isCustomProvider && (mCurrentCustomModels == null || mCurrentCustomModels.isEmpty())) {
+            showStatus("No custom model list found. Please reselect the provider and model.", false);
+            return;
+        }
 
-        if (keyWritten && providerWritten) {
+        boolean saved = BotDropConfig.setActiveProvider(
+            providerId,
+            modelToUse,
+            credential,
+            isCustomProvider ? baseUrl : null,
+            isCustomProvider ? mCurrentCustomModels : null
+        );
+        if (saved) {
             if (getContext() != null) {
                 ModelSelectorDialog.cacheProviderApiKey(requireContext(), providerId, credential);
             }
@@ -252,6 +332,9 @@ public class AuthFragment extends Fragment implements SetupActivity.StepFragment
             template.provider = providerId;
             template.model = mSelectedModel != null ? mSelectedModel : fullModel;
             template.apiKey = credential;
+            if (isCustomProvider && !TextUtils.isEmpty(baseUrl)) {
+                template.baseUrl = baseUrl;
+            }
             ConfigTemplateCache.saveTemplate(requireContext(), template);
 
             mNavigationRunnable = () -> {

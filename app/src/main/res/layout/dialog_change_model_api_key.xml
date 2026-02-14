@@ -9,54 +9,227 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/botdrop_dialog_card_bg"
-        android:padding="16dp">
-
-        <TextView
-            android:id="@+id/change_model_selected_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/botdrop_on_background"
-            android:layout_marginBottom="4dp" />
-
-        <TextView
-            android:id="@+id/change_model_note"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="@color/botdrop_secondary_text"
-            android:lineSpacingExtra="2sp"
-            android:layout_marginBottom="12dp" />
-
-        <EditText
-            android:id="@+id/change_model_api_key_input"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:minHeight="46dp"
-            android:hint="Enter API key"
-            android:inputType="textPassword"
-            android:imeOptions="actionDone"
-            android:textColor="@color/botdrop_on_background"
-            android:textColorHint="@color/botdrop_secondary_text" />
-
-        <TextView
-            android:id="@+id/change_model_cached_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Saved keys"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="@color/botdrop_secondary_text"
-            android:layout_marginBottom="6dp"
-            android:visibility="gone" />
+        android:background="@drawable/botdrop_dialog_card_bg">
 
         <LinearLayout
-            android:id="@+id/change_model_cached_keys_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Set provider credentials"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_on_background"
+                android:fontFamily="sans-serif-medium" />
+
+            <ImageButton
+                android:id="@+id/change_model_close_button"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:tint="@color/botdrop_on_background"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/botdrop_surface"
+            android:alpha="0.45" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/change_model_selected_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_on_background"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/change_model_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/botdrop_secondary_text"
+                android:lineSpacingExtra="2sp"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:id="@+id/change_model_provider_id_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Provider ID"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/botdrop_on_background"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/botdrop_input_bg"
+                    android:padding="4dp">
+
+                    <EditText
+                        android:id="@+id/change_model_provider_id_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="46dp"
+                        android:hint="e.g., moonshot"
+                        android:inputType="text"
+                        android:imeOptions="actionDone"
+                        android:background="@android:color/transparent"
+                        android:textSize="14sp"
+                        android:padding="12dp"
+                        android:textColor="@color/botdrop_on_background"
+                        android:textColorHint="@color/botdrop_secondary_text" />
+
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/change_model_base_url_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Custom Base URL"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/botdrop_on_background"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/botdrop_input_bg"
+                    android:padding="4dp">
+
+                    <EditText
+                        android:id="@+id/change_model_base_url_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="46dp"
+                        android:hint="https://api.example.com/v1"
+                        android:inputType="textUri"
+                        android:imeOptions="actionDone"
+                        android:background="@android:color/transparent"
+                        android:textSize="14sp"
+                        android:padding="12dp"
+                        android:textColor="@color/botdrop_on_background"
+                        android:textColorHint="@color/botdrop_secondary_text" />
+
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/botdrop_input_bg"
+                android:padding="4dp"
+                android:layout_marginBottom="12dp">
+
+                <EditText
+                    android:id="@+id/change_model_api_key_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="46dp"
+                    android:hint="Enter API key"
+                    android:inputType="textPassword"
+                    android:imeOptions="actionDone"
+                    android:background="@android:color/transparent"
+                    android:textSize="14sp"
+                    android:padding="12dp"
+                    android:textColor="@color/botdrop_on_background"
+                    android:textColorHint="@color/botdrop_secondary_text" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/change_model_cached_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Saved keys"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/botdrop_secondary_text"
+                android:layout_marginBottom="6dp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/change_model_cached_keys_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/botdrop_surface"
+            android:alpha="0.45" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <Button
+                android:id="@+id/change_model_cancel_button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:text="Cancel"
+                android:textAllCaps="false"
+                android:textColor="@color/botdrop_accent"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/change_model_confirm_button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/botdrop_button_bg"
+                android:text="Continue"
+                android:textAllCaps="false"
+                android:textColor="#1A1A1A"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

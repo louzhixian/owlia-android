@@ -5,6 +5,10 @@ import android.content.SharedPreferences;
 
 import com.termux.shared.logger.Logger;
 
+import android.text.TextUtils;
+
+import java.util.Collections;
+
 /**
  * Configuration template cache using SharedPreferences.
  * Purpose: Avoid users re-entering configuration information.
@@ -14,13 +18,14 @@ public class ConfigTemplateCache {
 
     private static final String LOG_TAG = "ConfigTemplateCache";
     private static final String PREFS_NAME = "botdrop_config_template";
-    private static final int CONFIG_VERSION = 1;
+    private static final int CONFIG_VERSION = 2;
 
     // Keys
     private static final String KEY_VERSION = "version";
     private static final String KEY_PROVIDER = "provider";
     private static final String KEY_MODEL = "model";
     private static final String KEY_API_KEY = "api_key";
+    private static final String KEY_BASE_URL = "base_url";
     private static final String KEY_TG_BOT_TOKEN = "tg_bot_token";
     private static final String KEY_TG_USER_ID = "tg_user_id";
 
@@ -41,6 +46,7 @@ public class ConfigTemplateCache {
             editor.putString(KEY_PROVIDER, template.provider);
             editor.putString(KEY_MODEL, template.model);
             editor.putString(KEY_API_KEY, template.apiKey);
+            editor.putString(KEY_BASE_URL, template.baseUrl);
             editor.putString(KEY_TG_BOT_TOKEN, template.tgBotToken);
             editor.putString(KEY_TG_USER_ID, template.tgUserId);
 
@@ -76,6 +82,7 @@ public class ConfigTemplateCache {
             template.provider = prefs.getString(KEY_PROVIDER, null);
             template.model = prefs.getString(KEY_MODEL, null);
             template.apiKey = prefs.getString(KEY_API_KEY, null);
+            template.baseUrl = prefs.getString(KEY_BASE_URL, null);
             template.tgBotToken = prefs.getString(KEY_TG_BOT_TOKEN, null);
             template.tgUserId = prefs.getString(KEY_TG_USER_ID, null);
 
@@ -133,14 +140,24 @@ public class ConfigTemplateCache {
             }
 
             // Set provider and model
-            boolean success = BotDropConfig.setProvider(template.provider, modelName);
+            boolean success = BotDropConfig.setProvider(
+                template.provider,
+                modelName,
+                template.baseUrl,
+                !TextUtils.isEmpty(modelName) ? Collections.singletonList(modelName) : null
+            );
             if (!success) {
                 Logger.logError(LOG_TAG, "Failed to set provider/model");
                 return false;
             }
 
             // Set API key
-            success = BotDropConfig.setApiKey(template.provider, modelName, template.apiKey);
+            success = BotDropConfig.setApiKey(
+                template.provider,
+                modelName,
+                template.apiKey,
+                !TextUtils.isEmpty(template.baseUrl) ? template.baseUrl : null
+            );
             if (!success) {
                 Logger.logError(LOG_TAG, "Failed to set API key");
                 return false;

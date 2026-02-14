@@ -4,6 +4,8 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextUtils;
@@ -32,10 +34,15 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -52,6 +59,11 @@ public class ModelSelectorDialog extends Dialog {
     private static final String KEY_CACHE_PREFIX = "recent_keys_by_provider_";
     private static final String KEY_CACHE_PREFIX_LEGACY = "recent_keys_by_model_";
     private static final int MAX_CACHED_KEYS_PER_MODEL = 8;
+    private static final int MODEL_REQUEST_CONNECT_TIMEOUT_MS = 12000;
+    private static final int MODEL_REQUEST_READ_TIMEOUT_MS = 15000;
+    private static final String MODELS_PATH_SUFFIX = "/models";
+    private static final String CUSTOM_PROVIDER_ID = BotDropConfig.CUSTOM_PROVIDER_ID;
+    private static final String CUSTOM_PROVIDER_DISPLAY_NAME = "Custom Provider";
 
     // Cached in-memory for the currently active OpenClaw version.
     private static List<ModelInfo> sCachedAllModels;
@@ -74,9 +86,13 @@ public class ModelSelectorDialog extends Dialog {
     private List<ModelInfo> mCurrentItems = new ArrayList<>();
     private boolean mSelectingProvider = true;
     private String mCurrentProvider;
+    private String mPendingProvider;
+    private String mPendingApiKey;
+    private String mPendingBaseUrl;
+    private List<String> mPendingAvailableModels;
 
     public interface ModelSelectedCallback {
-        void onModelSelected(String provider, String model, String apiKey);
+        void onModelSelected(String provider, String model, String apiKey, String baseUrl, List<String> availableModels);
     }
 
     public ModelSelectorDialog(@NonNull Context context, BotDropService service) {
@@ -158,25 +174,22 @@ public class ModelSelectorDialog extends Dialog {
 
         closeButton.setOnClickListener(v -> {
             if (mCallback != null) {
-                mCallback.onModelSelected(null, null, null);
+                mCallback.onModelSelected(null, null, null, null, null);
             }
+            clearPendingCredentials();
             dismiss();
         });
 
         mAdapter = new ModelListAdapter(model -> {
-            if (mCallback == null) {
-                return;
-            }
-
             if (mSelectingProvider) {
                 if (model != null && !TextUtils.isEmpty(model.provider) && TextUtils.isEmpty(model.model)) {
-                    showModelSelection(model.provider);
+                    handleProviderSelection(model.provider);
                 }
                 return;
             }
 
             if (model != null && !TextUtils.isEmpty(model.provider) && !TextUtils.isEmpty(model.model)) {
-                confirmSelection(model.provider, model.model);
+                onModelSelected(model.provider, model.model);
             }
         });
 
@@ -200,6 +213,50 @@ public class ModelSelectorDialog extends Dialog {
         mBackButton.setOnClickListener(v -> showProviderSelection());
 
         loadModels();
+    }
+
+    private void handleProviderSelection(String provider) {
+        if (TextUtils.isEmpty(provider)) {
+            return;
+        }
+
+        if (!mPromptForApiKey) {
+            showModelSelection(provider);
+            return;
+        }
+
+        showProviderCredentialPrompt(provider);
+    }
+
+    private void onModelSelected(String provider, String model) {
+        if (mCallback == null || TextUtils.isEmpty(provider) || TextUtils.isEmpty(model)) {
+            return;
+        }
+
+        String normalizedModel = normalizeCustomModelId(provider, model);
+        if (TextUtils.isEmpty(normalizedModel)) {
+            return;
+        }
+
+        if (mPromptForApiKey) {
+            if (!TextUtils.isEmpty(mPendingProvider) && TextUtils.equals(mPendingProvider, provider)) {
+                mCallback.onModelSelected(
+                    provider,
+                    normalizedModel,
+                    mPendingApiKey,
+                    mPendingBaseUrl,
+                    getPendingAvailableModels()
+                );
+                dismiss();
+                return;
+            }
+
+            showProviderCredentialPrompt(provider);
+            return;
+        }
+
+        mCallback.onModelSelected(provider, normalizedModel, null, null, null);
+        dismiss();
     }
 
     private void loadModels() {
@@ -339,81 +396,494 @@ public class ModelSelectorDialog extends Dialog {
         showProviderSelection();
     }
 
-    private void confirmSelection(String provider, String model) {
-        if (TextUtils.isEmpty(provider) || TextUtils.isEmpty(model) || mCallback == null) {
+    private void showProviderCredentialPrompt(String provider) {
+        if (TextUtils.isEmpty(provider) || mCallback == null) {
             return;
         }
 
-        if (!mPromptForApiKey) {
-            mCallback.onModelSelected(provider, model, null);
-            dismiss();
-            return;
+        String savedBaseUrl = BotDropConfig.getBaseUrl(provider);
+        final boolean useCustomEndpoint = isCustomProvider(provider) || !TextUtils.isEmpty(savedBaseUrl);
+        String providerForStorage = provider;
+        if (useCustomEndpoint && isCustomProvider(provider)) {
+            String candidateProvider = sanitizeProviderIdentifier(deriveProviderIdFromUrl(savedBaseUrl));
+            if (!TextUtils.isEmpty(candidateProvider)) {
+                providerForStorage = candidateProvider;
+            }
         }
+        boolean hasExistingKey = BotDropConfig.hasApiKey(providerForStorage);
+        String currentProviderKey = BotDropConfig.getApiKey(providerForStorage);
 
-        showApiKeyPrompt(provider, model);
-    }
-
-    private void showApiKeyPrompt(String provider, String model) {
-        if (TextUtils.isEmpty(provider) || TextUtils.isEmpty(model) || mCallback == null) {
-            return;
-        }
-
-        String fullModel = provider + "/" + model;
-        boolean hasExistingKey = BotDropConfig.hasApiKey(provider);
         View content = LayoutInflater.from(getContext())
             .inflate(R.layout.dialog_change_model_api_key, null);
-        if (content == null) return;
+        if (content == null) {
+            return;
+        }
 
         TextView selectedModelText = content.findViewById(R.id.change_model_selected_text);
         TextView noteText = content.findViewById(R.id.change_model_note);
+        android.widget.EditText providerIdInput = content.findViewById(R.id.change_model_provider_id_input);
+        View providerIdSection = content.findViewById(R.id.change_model_provider_id_section);
+        EditText baseUrlInput = content.findViewById(R.id.change_model_base_url_input);
+        View baseUrlSection = content.findViewById(R.id.change_model_base_url_section);
         TextView cachedTitle = content.findViewById(R.id.change_model_cached_title);
         LinearLayout cachedKeysContainer = content.findViewById(R.id.change_model_cached_keys_container);
         EditText apiKeyInput = content.findViewById(R.id.change_model_api_key_input);
-        if (selectedModelText == null || noteText == null || cachedTitle == null
-            || cachedKeysContainer == null || apiKeyInput == null) {
+        if (selectedModelText == null || noteText == null || baseUrlInput == null || cachedTitle == null
+            || cachedKeysContainer == null || apiKeyInput == null || providerIdSection == null || providerIdInput == null) {
             return;
         }
+        if (baseUrlSection != null) {
+            baseUrlSection.setVisibility(useCustomEndpoint ? View.VISIBLE : View.GONE);
+        }
+        if (providerIdSection != null) {
+            providerIdSection.setVisibility(isCustomProvider(provider) ? View.VISIBLE : View.GONE);
+        }
 
-        selectedModelText.setText(fullModel);
-        noteText.setText(hasExistingKey
-            ? "Enter a new API key if you want to replace the current one."
-            : "No API key found for provider \"" + provider + "\". Please enter one.");
+        selectedModelText.setText(isCustomProvider(provider) ? CUSTOM_PROVIDER_DISPLAY_NAME : provider);
+        noteText.setText(isCustomProvider(provider)
+            ? "Enter provider ID (optional), base URL and API key, then load models."
+            : "Enter API key for this provider.");
 
+        String suggestedProviderId = isCustomProvider(provider)
+            ? sanitizeProviderIdentifier(deriveProviderIdFromUrl(savedBaseUrl))
+            : "";
+        if (!TextUtils.isEmpty(suggestedProviderId) && providerIdInput != null) {
+            providerIdInput.setText(suggestedProviderId);
+        }
+        String keyLookupProvider = providerForStorage;
+        if (TextUtils.isEmpty(keyLookupProvider)) {
+            keyLookupProvider = provider;
+        }
+
+        baseUrlInput.setText(savedBaseUrl);
+        if (!useCustomEndpoint) {
+            baseUrlInput.setText("");
+        }
+        if (providerIdInput != null && !useCustomEndpoint) {
+            providerIdInput.setText("");
+        }
         apiKeyInput.setHint(hasExistingKey ? "Leave empty to keep current key" : "Enter API key");
         apiKeyInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         apiKeyInput.setTextColor(getContext().getColor(R.color.botdrop_on_background));
         apiKeyInput.setText("");
 
-        String currentProviderKey = BotDropConfig.getApiKey(provider);
         if (!TextUtils.isEmpty(currentProviderKey)) {
-            cacheApiKey(provider, currentProviderKey);
+            cacheApiKey(keyLookupProvider, currentProviderKey);
         }
 
-        renderCachedKeys(provider, apiKeyInput, cachedKeysContainer, cachedTitle);
+        renderCachedKeys(keyLookupProvider, apiKeyInput, cachedKeysContainer, cachedTitle);
 
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
-            .setTitle("Change model")
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save & Apply", null)
             .setView(content)
             .create();
 
-        dialog.setOnShowListener(d -> dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        ImageButton closeButton = content.findViewById(R.id.change_model_close_button);
+        Button cancelButton = content.findViewById(R.id.change_model_cancel_button);
+        Button confirmButton = content.findViewById(R.id.change_model_confirm_button);
+        if (confirmButton != null) {
+            confirmButton.setText(useCustomEndpoint ? "Fetch Models" : "Continue");
+        }
+
+        final boolean[] confirmed = {false};
+        Runnable submitProviderCredentials = () -> {
             String newApiKey = apiKeyInput.getText().toString().trim();
-            if (!hasExistingKey && TextUtils.isEmpty(newApiKey)) {
+            String newBaseUrl = baseUrlInput.getText().toString().trim();
+            String requestedProvider = provider;
+            String requestedProviderFromInput = null;
+            if (isCustomProvider(provider) && providerIdInput != null) {
+                requestedProviderFromInput = providerIdInput.getText().toString().trim();
+                requestedProvider = requestedProviderFromInput;
+            }
+            String resolvedProvider = sanitizeProviderIdentifier(requestedProvider);
+
+            String effectiveApiKey = newApiKey;
+            if (TextUtils.isEmpty(effectiveApiKey)) {
+                effectiveApiKey = currentProviderKey;
+            }
+
+            String effectiveBaseUrl = null;
+            if (useCustomEndpoint) {
+                effectiveBaseUrl = newBaseUrl;
+                if (TextUtils.isEmpty(effectiveBaseUrl)) {
+                    effectiveBaseUrl = savedBaseUrl;
+                }
+                if (TextUtils.isEmpty(effectiveBaseUrl)) {
+                    baseUrlInput.setError("Base URL is required for this provider");
+                    return;
+                }
+
+            if (TextUtils.isEmpty(resolvedProvider)) {
+                resolvedProvider = sanitizeProviderIdentifier(deriveProviderIdFromUrl(effectiveBaseUrl));
+            }
+            if (TextUtils.isEmpty(resolvedProvider) && !TextUtils.isEmpty(requestedProviderFromInput)) {
+                resolvedProvider = sanitizeProviderIdentifier(requestedProviderFromInput);
+            }
+
+                if (TextUtils.isEmpty(resolvedProvider)) {
+                    if (providerIdInput != null) {
+                        providerIdInput.setError("Provider ID is required");
+                    }
+                    return;
+                }
+
+                if (isCustomProvider(provider) && isDuplicateProviderId(resolvedProvider)) {
+                    if (providerIdInput != null) {
+                        providerIdInput.setError("This provider name already exists");
+                    }
+                    return;
+                }
+
+                providerIdInput.setText(resolvedProvider);
+                if (isCustomProvider(provider) && !TextUtils.equals(requestedProviderFromInput, resolvedProvider) &&
+                    !TextUtils.isEmpty(resolvedProvider)) {
+                    requestedProvider = resolvedProvider;
+                }
+            }
+
+            if (TextUtils.isEmpty(effectiveApiKey)) {
+                String cachedKeyForResolvedProvider = BotDropConfig.getApiKey(resolvedProvider);
+                if (!TextUtils.isEmpty(cachedKeyForResolvedProvider)) {
+                    effectiveApiKey = cachedKeyForResolvedProvider;
+                }
+            }
+            if (TextUtils.isEmpty(effectiveApiKey)) {
                 apiKeyInput.setError("API key is required for this provider");
                 return;
             }
-            if (!TextUtils.isEmpty(newApiKey)) {
-                cacheApiKey(provider, newApiKey);
-            }
-            mCallback.onModelSelected(provider, model, newApiKey);
-            dialog.dismiss();
-            dismiss();
-        }));
-        dialog.setOnDismissListener(d -> dismiss());
 
+            if (!TextUtils.isEmpty(newApiKey)) {
+                cacheApiKey(resolvedProvider, newApiKey);
+            }
+
+            setPendingCredentials(resolvedProvider, effectiveApiKey, effectiveBaseUrl, null);
+            confirmed[0] = true;
+            dialog.dismiss();
+
+            if (useCustomEndpoint) {
+                loadCustomModels(resolvedProvider, effectiveBaseUrl, effectiveApiKey);
+            } else {
+                showModelSelection(provider);
+            }
+        };
+        if (closeButton != null) {
+            closeButton.setOnClickListener(v -> dialog.dismiss());
+        }
+        if (cancelButton != null) {
+            cancelButton.setOnClickListener(v -> dialog.dismiss());
+        }
+        if (confirmButton != null) {
+            confirmButton.setOnClickListener(v -> submitProviderCredentials.run());
+        }
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        dialog.setOnDismissListener(d -> {
+            if (confirmed[0]) {
+                return;
+            }
+            clearPendingCredentials();
+        });
         dialog.show();
+    }
+
+    private void loadCustomModels(String provider, String baseUrl, String apiKey) {
+        if (TextUtils.isEmpty(provider) || TextUtils.isEmpty(baseUrl) || TextUtils.isEmpty(apiKey)) {
+            showError("Base URL and API key are required for custom providers.");
+            return;
+        }
+
+        showLoading();
+        if (mStatusText != null) {
+            mStatusText.setText("Loading models from custom URL...");
+        }
+
+        new Thread(() -> {
+            List<ModelInfo> models = fetchModelsFromCustomUrl(provider, baseUrl, apiKey);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (!isShowing()) {
+                    return;
+                }
+
+                if (TextUtils.isEmpty(mPendingProvider) || !TextUtils.equals(mPendingProvider, provider)) {
+                    return;
+                }
+
+                if (models == null || models.isEmpty()) {
+                    showError("No models returned by custom provider URL.");
+                    clearPendingCredentials();
+                    return;
+                }
+
+                Collections.sort(models,
+                    (a, b) -> {
+                        if (a == null || b == null || a.fullName == null || b.fullName == null) {
+                            return 0;
+                        }
+                        return b.fullName.compareToIgnoreCase(a.fullName);
+                    }
+                );
+                mPendingAvailableModels = extractAvailableModelIds(models);
+                showModelSelection(provider, models);
+            });
+        }).start();
+    }
+
+    private List<ModelInfo> fetchModelsFromCustomUrl(String provider, String baseUrl, String apiKey) {
+        List<ModelInfo> result = new ArrayList<>();
+        String endpoint = buildCustomModelsEndpoint(baseUrl);
+        if (TextUtils.isEmpty(endpoint) || TextUtils.isEmpty(apiKey)) {
+            return result;
+        }
+
+        HttpURLConnection conn = null;
+        InputStream stream = null;
+        try {
+            URL url = new URL(endpoint);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(MODEL_REQUEST_CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(MODEL_REQUEST_READ_TIMEOUT_MS);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                Logger.logWarn(LOG_TAG, "Custom model request failed: HTTP " + responseCode + " (" + endpoint + ")");
+                return result;
+            }
+
+            stream = conn.getInputStream();
+            String body = readStreamAsUtf8(stream);
+            if (TextUtils.isEmpty(body)) {
+                return result;
+            }
+
+            List<String> modelIds = parseModelIdsFromResponse(body);
+            List<String> deduped = new ArrayList<>();
+            for (String modelId : modelIds) {
+                String normalized = normalizeCustomModelId(provider, modelId);
+                if (TextUtils.isEmpty(normalized) || deduped.contains(normalized)) {
+                    continue;
+                }
+                deduped.add(normalized);
+            }
+
+            for (String modelId : deduped) {
+                result.add(new ModelInfo(provider + "/" + modelId, provider, modelId));
+            }
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to fetch models from custom URL: " + e.getMessage());
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException ignored) {
+                }
+            }
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+
+        return result;
+    }
+
+    private String buildCustomModelsEndpoint(String baseUrl) {
+        if (TextUtils.isEmpty(baseUrl)) {
+            return "";
+        }
+        String normalized = baseUrl.trim();
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.endsWith(MODELS_PATH_SUFFIX)) {
+            return normalized;
+        }
+        if (TextUtils.isEmpty(normalized) || (!normalized.startsWith("http://") && !normalized.startsWith("https://"))) {
+            return "";
+        }
+        return normalized + MODELS_PATH_SUFFIX;
+    }
+
+    private List<String> parseModelIdsFromResponse(String response) {
+        List<String> modelIds = new ArrayList<>();
+        if (TextUtils.isEmpty(response)) {
+            return modelIds;
+        }
+
+        String trimmed = response.trim();
+        try {
+            if (trimmed.startsWith("{")) {
+                JSONObject root = new JSONObject(trimmed);
+
+                JSONArray data = root.optJSONArray("data");
+                if (data != null) {
+                    extractModelIdsFromArray(data, modelIds);
+                }
+
+                JSONArray models = root.optJSONArray("models");
+                if (models != null) {
+                    extractModelIdsFromArray(models, modelIds);
+                }
+
+                if (modelIds.isEmpty()) {
+                    String directData = root.optString("data", "");
+                    if (!TextUtils.isEmpty(directData)) {
+                        modelIds.add(directData);
+                    } else {
+                        String directModels = root.optString("models", "");
+                        if (!TextUtils.isEmpty(directModels)) {
+                            modelIds.add(directModels);
+                        }
+                    }
+                }
+
+                if (modelIds.isEmpty()) {
+                    String textFallback = root.toString();
+                    if (!TextUtils.isEmpty(textFallback)) {
+                        modelIds.addAll(parseModelIdsFromText(textFallback));
+                    }
+                }
+            } else if (trimmed.startsWith("[")) {
+                extractModelIdsFromArray(new JSONArray(trimmed), modelIds);
+                if (modelIds.isEmpty()) {
+                    modelIds.addAll(parseModelIdsFromText(trimmed));
+                }
+            } else {
+                modelIds.addAll(parseModelIdsFromText(response));
+            }
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to parse custom models response, fallback to plain text: " + e.getMessage());
+            modelIds.addAll(parseModelIdsFromText(response));
+        }
+
+        return modelIds;
+    }
+
+    private void extractModelIdsFromArray(JSONArray array, List<String> modelIds) {
+        if (array == null || modelIds == null) {
+            return;
+        }
+
+        for (int i = 0; i < array.length(); i++) {
+            Object entry = array.opt(i);
+            if (entry == null) {
+                continue;
+            }
+            if (entry instanceof String) {
+                String value = ((String) entry).trim();
+                if (!TextUtils.isEmpty(value)) {
+                    modelIds.add(value);
+                }
+                continue;
+            }
+            if (!(entry instanceof JSONObject)) {
+                continue;
+            }
+            JSONObject obj = (JSONObject) entry;
+            String id = obj.optString("id", "").trim();
+            if (TextUtils.isEmpty(id)) {
+                id = obj.optString("model", "").trim();
+            }
+            if (TextUtils.isEmpty(id)) {
+                id = obj.optString("name", "").trim();
+            }
+            if (!TextUtils.isEmpty(id)) {
+                modelIds.add(id);
+            }
+        }
+    }
+
+    private List<String> parseModelIdsFromText(String response) {
+        List<String> modelIds = new ArrayList<>();
+        if (TextUtils.isEmpty(response)) {
+            return modelIds;
+        }
+
+        String[] lines = response.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line == null ? "" : line.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                continue;
+            }
+            if (trimmed.startsWith("#") || trimmed.startsWith("Model ")) {
+                continue;
+            }
+            String token = trimmed;
+            if (trimmed.contains(" ")) {
+                token = trimmed.split("\\s+")[0];
+            }
+            if (token.startsWith("\"") && token.endsWith("\"") && token.length() > 1) {
+                token = token.substring(1, token.length() - 1);
+            }
+            if (!TextUtils.isEmpty(token)) {
+                modelIds.add(token);
+            }
+        }
+
+        return modelIds;
+    }
+
+    private String normalizeCustomModelId(String provider, String modelId) {
+        if (TextUtils.isEmpty(provider) || TextUtils.isEmpty(modelId)) {
+            return "";
+        }
+        String normalized = modelId.trim();
+        String prefix = provider + "/";
+        if (normalized.startsWith(prefix)) {
+            normalized = normalized.substring(prefix.length());
+        }
+        return normalized;
+    }
+
+    private List<String> getPendingAvailableModels() {
+        if (mPendingAvailableModels == null || mPendingAvailableModels.isEmpty()) {
+            return null;
+        }
+        return new ArrayList<>(mPendingAvailableModels);
+    }
+
+    private List<String> extractAvailableModelIds(List<ModelInfo> models) {
+        List<String> modelIds = new ArrayList<>();
+        if (models == null) {
+            return modelIds;
+        }
+        for (ModelInfo model : models) {
+            if (model == null || TextUtils.isEmpty(model.model)) {
+                continue;
+            }
+            if (!modelIds.contains(model.model)) {
+                modelIds.add(model.model);
+            }
+        }
+        return modelIds;
+    }
+
+    private String readStreamAsUtf8(InputStream stream) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        return sb.toString();
+    }
+
+    private void setPendingCredentials(String provider, String apiKey, String baseUrl, List<String> availableModels) {
+        mPendingProvider = provider;
+        mPendingApiKey = apiKey;
+        mPendingBaseUrl = baseUrl;
+        mPendingAvailableModels = availableModels == null ? null : new ArrayList<>(availableModels);
+    }
+
+    private void clearPendingCredentials() {
+        mPendingProvider = null;
+        mPendingApiKey = null;
+        mPendingBaseUrl = null;
+        mPendingAvailableModels = null;
     }
 
     private void renderCachedKeys(String provider, EditText apiKeyInput, LinearLayout container, TextView titleText) {
@@ -442,6 +912,7 @@ public class ModelSelectorDialog extends Dialog {
             LinearLayout row = new LinearLayout(getContext());
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setBackgroundResource(R.drawable.botdrop_input_bg);
             row.setPadding(
                 (int) (12 * getContext().getResources().getDisplayMetrics().density),
                 (int) (10 * getContext().getResources().getDisplayMetrics().density),
@@ -458,17 +929,21 @@ public class ModelSelectorDialog extends Dialog {
             TextView keyText = new TextView(getContext());
             keyText.setText(maskApiKey(key));
             keyText.setTextColor(getContext().getColor(R.color.botdrop_on_background));
+            keyText.setTextSize(12f);
             keyText.setLayoutParams(new LinearLayout.LayoutParams(
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 1f
             ));
+            keyText.setMaxLines(1);
+            keyText.setEllipsize(TextUtils.TruncateAt.END);
             row.addView(keyText);
 
             TextView useAction = new TextView(getContext());
             useAction.setText("Use");
             useAction.setTextSize(12f);
             useAction.setTextColor(getContext().getColor(R.color.botdrop_accent));
+            useAction.setTypeface(useAction.getTypeface(), android.graphics.Typeface.BOLD);
             useAction.setPadding((int) (12 * getContext().getResources().getDisplayMetrics().density),
                 (int) (4 * getContext().getResources().getDisplayMetrics().density),
                 (int) (12 * getContext().getResources().getDisplayMetrics().density),
@@ -483,7 +958,7 @@ public class ModelSelectorDialog extends Dialog {
             deleteAction.setImageResource(android.R.drawable.ic_menu_delete);
             deleteAction.setContentDescription("Delete cached key");
             deleteAction.setColorFilter(getContext().getColor(R.color.status_disconnected));
-            deleteAction.setBackgroundColor(0x00000000);
+            deleteAction.setBackgroundResource(android.R.color.transparent);
             int iconSize = (int) (22 * getContext().getResources().getDisplayMetrics().density);
             LinearLayout.LayoutParams deleteLp = new LinearLayout.LayoutParams(iconSize, iconSize);
             deleteLp.setMarginStart((int) (4 * getContext().getResources().getDisplayMetrics().density));
@@ -690,7 +1165,49 @@ public class ModelSelectorDialog extends Dialog {
         return value.trim().replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
+    private String deriveProviderIdFromUrl(String baseUrl) {
+        if (TextUtils.isEmpty(baseUrl)) {
+            return "";
+        }
+
+        try {
+            URL url = new URL(baseUrl.trim());
+            String host = url.getHost();
+            if (TextUtils.isEmpty(host)) {
+                return "";
+            }
+
+            host = host.toLowerCase(Locale.ROOT);
+            if (host.startsWith("api.")) {
+                host = host.substring("api.".length());
+            }
+            String[] parts = host.split("\\.");
+            if (parts.length == 0) {
+                return "";
+            }
+
+            if (parts.length >= 2 && TextUtils.equals(parts[0], "api")) {
+                return parts[1];
+            }
+            return parts[0];
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String sanitizeProviderIdentifier(String providerId) {
+        if (TextUtils.isEmpty(providerId)) {
+            return "";
+        }
+        String normalized = providerId.trim().toLowerCase(Locale.ROOT);
+        normalized = normalized.replaceAll("[^a-z0-9._-]", "-");
+        normalized = normalized.replaceAll("-+", "-");
+        normalized = normalized.replaceAll("^-+|-+$", "");
+        return normalized;
+    }
+
     private void showProviderSelection() {
+        clearPendingCredentials();
         mSelectingProvider = true;
         mCurrentProvider = null;
         mCurrentItems = new ArrayList<>();
@@ -701,9 +1218,42 @@ public class ModelSelectorDialog extends Dialog {
                 providers.add(model.provider);
             }
         }
+
+        if (mPromptForApiKey) {
+            mCurrentItems.add(new ModelInfo(CUSTOM_PROVIDER_DISPLAY_NAME, CUSTOM_PROVIDER_ID, ""));
+
+            List<String> customProviders = BotDropConfig.getConfiguredCustomProviders();
+            for (String customProvider : customProviders) {
+                if (TextUtils.isEmpty(customProvider)
+                    || TextUtils.equals(customProvider, CUSTOM_PROVIDER_ID)
+                    || providers.contains(customProvider)) {
+                    continue;
+                }
+
+                providers.add(customProvider);
+            }
+        }
+
         Collections.sort(providers, String::compareToIgnoreCase);
 
+        List<String> keyedProviders = new ArrayList<>();
+        List<String> unkeyedProviders = new ArrayList<>();
         for (String provider : providers) {
+            if (TextUtils.isEmpty(provider) || TextUtils.equals(provider, CUSTOM_PROVIDER_ID)) {
+                continue;
+            }
+
+            if (BotDropConfig.hasApiKey(provider)) {
+                keyedProviders.add(provider);
+            } else {
+                unkeyedProviders.add(provider);
+            }
+        }
+
+        for (String provider : keyedProviders) {
+            mCurrentItems.add(new ModelInfo(provider, provider, ""));
+        }
+        for (String provider : unkeyedProviders) {
             mCurrentItems.add(new ModelInfo(provider, provider, ""));
         }
 
@@ -724,6 +1274,44 @@ public class ModelSelectorDialog extends Dialog {
     }
 
     private void showModelSelection(String provider) {
+        showModelSelection(provider, null);
+    }
+
+    private boolean isCustomProvider(String provider) {
+        return TextUtils.equals(provider, CUSTOM_PROVIDER_ID);
+    }
+
+    private boolean isDuplicateProviderId(String providerId) {
+        String normalizedProvider = sanitizeProviderIdentifier(providerId);
+        if (TextUtils.isEmpty(normalizedProvider)) {
+            return false;
+        }
+
+        if (TextUtils.equals(normalizedProvider, CUSTOM_PROVIDER_ID)) {
+            return true;
+        }
+
+        for (ModelInfo model : mAllModels) {
+            if (model == null || TextUtils.isEmpty(model.provider)) {
+                continue;
+            }
+            String normalizedExisting = sanitizeProviderIdentifier(model.provider);
+            if (!TextUtils.isEmpty(normalizedExisting) && TextUtils.equals(normalizedExisting, normalizedProvider)) {
+                return true;
+            }
+        }
+
+        for (String configuredProvider : BotDropConfig.getConfiguredCustomProviders()) {
+            String normalizedExisting = sanitizeProviderIdentifier(configuredProvider);
+            if (!TextUtils.isEmpty(normalizedExisting) && TextUtils.equals(normalizedExisting, normalizedProvider)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void showModelSelection(String provider, List<ModelInfo> modelsForProvider) {
         if (TextUtils.isEmpty(provider)) {
             showProviderSelection();
             return;
@@ -733,9 +1321,22 @@ public class ModelSelectorDialog extends Dialog {
         mCurrentProvider = provider;
 
         List<ModelInfo> models = new ArrayList<>();
-        for (ModelInfo model : mAllModels) {
-            if (model != null && TextUtils.equals(provider, model.provider)) {
-                models.add(model);
+        if (modelsForProvider != null) {
+            for (ModelInfo model : modelsForProvider) {
+                if (model == null || TextUtils.isEmpty(model.model)) {
+                    continue;
+                }
+                if (TextUtils.isEmpty(model.provider)) {
+                    models.add(new ModelInfo(provider + "/" + model.model, provider, model.model));
+                } else {
+                    models.add(new ModelInfo(model.fullName, provider, model.model));
+                }
+            }
+        } else {
+            for (ModelInfo model : mAllModels) {
+                if (model != null && TextUtils.equals(provider, model.provider)) {
+                    models.add(model);
+                }
             }
         }
 
@@ -748,11 +1349,12 @@ public class ModelSelectorDialog extends Dialog {
         if (mStepHint != null) {
             mStepHint.setText("Step 2 of 2");
         }
-        mTitleText.setText(provider + " models");
+        String providerName = isCustomProvider(provider) ? CUSTOM_PROVIDER_DISPLAY_NAME : provider;
+        mTitleText.setText(providerName + " models");
 
         mAdapter.updateList(mCurrentItems);
         if (mCurrentItems.isEmpty()) {
-            showError("No models available for " + provider);
+            showError("No models available for " + providerName);
             return;
         }
         showList();

@@ -11,7 +11,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.graphics.Typeface;
 import android.os.Build;
 import android.net.Uri;
 import android.os.Bundle;
@@ -21,9 +20,7 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -1369,10 +1366,10 @@ public class DashboardActivity extends Activity {
         }
 
         ModelSelectorDialog dialog = new ModelSelectorDialog(this, mBotDropService, true);
-        dialog.show((provider, model, apiKey) -> {
+        dialog.show((provider, model, apiKey, baseUrl, availableModels) -> {
             if (provider != null && model != null) {
                 String fullModel = provider + "/" + model;
-                updateModel(fullModel, apiKey);
+                updateModel(fullModel, apiKey, baseUrl, availableModels);
             }
         });
     }
@@ -1380,7 +1377,7 @@ public class DashboardActivity extends Activity {
     /**
      * Update model/API key and restart gateway.
      */
-    private void updateModel(String fullModel, String optionalApiKey) {
+    private void updateModel(String fullModel, String optionalApiKey, String optionalBaseUrl, List<String> availableModels) {
         if (!mBound || mBotDropService == null) {
             return;
         }
@@ -1395,16 +1392,24 @@ public class DashboardActivity extends Activity {
 
         String provider = parts[0];
         String model = parts[1];
-        boolean providerWritten = BotDropConfig.setProvider(provider, model);
-        boolean keyWritten = true;
-        if (!TextUtils.isEmpty(optionalApiKey)) {
-            keyWritten = BotDropConfig.setApiKey(provider, model, optionalApiKey);
+        boolean isCustomProvider = !TextUtils.isEmpty(optionalBaseUrl);
+        if (isCustomProvider && (availableModels == null || availableModels.isEmpty())) {
+            Toast.makeText(DashboardActivity.this, "No custom model list found", Toast.LENGTH_SHORT).show();
+            loadCurrentModel();
+            return;
         }
 
-        if (!providerWritten || !keyWritten) {
+        boolean configured = BotDropConfig.setActiveProvider(
+            provider,
+            model,
+            optionalApiKey,
+            isCustomProvider ? optionalBaseUrl : null,
+            isCustomProvider ? availableModels : null
+        );
+
+        if (!configured) {
             Toast.makeText(DashboardActivity.this, "Failed to update model settings", Toast.LENGTH_SHORT).show();
-            Logger.logError(LOG_TAG, "Failed to update model. providerWritten=" + providerWritten +
-                ", keyWritten=" + keyWritten);
+            Logger.logError(LOG_TAG, "Failed to update model settings for " + fullModel);
             loadCurrentModel();
             return;
         }
@@ -1420,6 +1425,11 @@ public class DashboardActivity extends Activity {
         template.model = fullModel;
         if (!TextUtils.isEmpty(optionalApiKey)) {
             template.apiKey = optionalApiKey;
+        }
+        if (!TextUtils.isEmpty(optionalBaseUrl)) {
+            template.baseUrl = optionalBaseUrl;
+        } else {
+            template.baseUrl = null;
         }
         ConfigTemplateCache.saveTemplate(DashboardActivity.this, template);
 
@@ -1466,25 +1476,21 @@ public class DashboardActivity extends Activity {
             }
 
             final String finalLogText = logText;
-            TextView logView = new TextView(this);
+            View logDialogView = getLayoutInflater().inflate(R.layout.dialog_openclaw_log, null);
+            TextView logView = logDialogView.findViewById(R.id.openclaw_log_text);
             logView.setText(finalLogText);
-            logView.setTextSize(11f);
-            logView.setTypeface(Typeface.MONOSPACE);
-            logView.setTextColor(ContextCompat.getColor(this, R.color.botdrop_on_background));
             logView.setMovementMethod(ScrollingMovementMethod.getInstance());
-            logView.setPadding(16, 16, 16, 16);
 
-            ScrollView scrollContainer = new ScrollView(this);
-            scrollContainer.addView(logView, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+            Button copyButton = logDialogView.findViewById(R.id.openclaw_log_copy_button);
+            Button closeButton = logDialogView.findViewById(R.id.openclaw_log_close_button);
 
-            new AlertDialog.Builder(this)
-                .setTitle("OpenClaw Gateway Log")
-                .setView(scrollContainer)
-                .setNeutralButton("Copy", (dialog, which) -> copyToClipboard(finalLogText))
-                .setPositiveButton("Close", null)
-                .show();
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(logDialogView)
+                .create();
+
+            copyButton.setOnClickListener(v -> copyToClipboard(finalLogText));
+            closeButton.setOnClickListener(v -> dialog.dismiss());
+            dialog.show();
         });
     }
 

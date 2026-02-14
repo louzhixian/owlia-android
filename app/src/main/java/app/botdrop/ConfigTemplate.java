@@ -9,6 +9,7 @@ public class ConfigTemplate {
     public String provider;      // e.g., "google"
     public String model;         // e.g., "gemini-3-flash-preview"
     public String apiKey;        // e.g., "AIzaSy..."
+    public String baseUrl;       // optional custom provider base URL
     public String tgBotToken;    // e.g., "7123456:AAF..." (optional)
     public String tgUserId;      // e.g., "987654321" (optional)
 
@@ -38,6 +39,7 @@ public class ConfigTemplate {
             "provider='" + provider + '\'' +
             ", model='" + model + '\'' +
             ", apiKey='***'" + // Don't log full key
+            ", baseUrl='" + (baseUrl != null ? "set" : "null") + '\'' +
             ", tgBotToken=" + (tgBotToken != null ? "***" : "null") +
             ", tgUserId='" + tgUserId + '\'' +
             '}';
