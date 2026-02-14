@@ -16,6 +16,9 @@
     <string name="application_name">&TERMUX_APP_NAME;</string>
     <string name="shared_user_label">&TERMUX_APP_NAME; user</string>
 
+    <!-- BotDrop Accessibility -->
+    <string name="botdrop_accessibility_service_description">Lets BotDrop read the on-screen UI tree and perform actions for automation.</string>
+
 
 
     <!-- Termux RUN_COMMAND permission -->

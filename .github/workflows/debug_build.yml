@@ -8,6 +8,20 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      bootstrap_base_url:
+        description: 'Bootstrap base URL override. Empty uses latest.'
+        required: false
+        default: ''
+      bootstrap_require_adb:
+        description: 'Fail build if bootstrap lacks bin/adb (1/0)'
+        required: false
+        default: '0'
+      bootstrap_fail_on_legacy_paths:
+        description: 'Fail build on /data/data/com.termux hardcoded paths (1/0)'
+        required: false
+        default: '0'
 
 jobs:
   build:
@@ -31,6 +45,9 @@ jobs:
         shell: bash {0}
         env:
           PACKAGE_VARIANT: ${{ matrix.package_variant }}
+          BOTDROP_BOOTSTRAP_BASE_URL: ${{ github.event.inputs.bootstrap_base_url }}
+          BOTDROP_BOOTSTRAP_REQUIRE_ADB: ${{ github.event.inputs.bootstrap_require_adb || '0' }}
+          BOTDROP_BOOTSTRAP_FAIL_ON_LEGACY_PATHS: ${{ github.event.inputs.bootstrap_fail_on_legacy_paths || '0' }}
         run: |
           exit_on_error() { echo "$1"; exit 1; }
 

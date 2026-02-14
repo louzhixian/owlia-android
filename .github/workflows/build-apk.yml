@@ -13,6 +13,18 @@ on:
         description: 'Version suffix (e.g., beta1, rc1)'
         required: false
         default: ''
+      bootstrap_base_url:
+        description: 'Bootstrap base URL (e.g. https://.../releases/download/<tag>). Empty uses latest.'
+        required: false
+        default: ''
+      bootstrap_require_adb:
+        description: 'Fail build if bootstrap does not include bin/adb (1/0)'
+        required: false
+        default: '0'
+      bootstrap_fail_on_legacy_paths:
+        description: 'Fail build if bootstrap contains /data/data/com.termux paths (1/0)'
+        required: false
+        default: '0'
 
 jobs:
   build:
@@ -37,9 +49,14 @@ jobs:
 
       - name: Download bootstrap archives
         run: |
-          echo "Downloading bootstrap archives from botdrop-packages latest release..."
+          set -e
+          echo "Downloading bootstrap archives..."
           cd app/src/main/cpp
-          url="https://github.com/zhixianio/botdrop-packages/releases/latest/download/bootstrap-aarch64.zip"
+          base_url="${{ github.event.inputs.bootstrap_base_url }}"
+          if [ -z "$base_url" ]; then
+            base_url="https://github.com/zhixianio/botdrop-packages/releases/latest/download"
+          fi
+          url="${base_url}/bootstrap-aarch64.zip"
           echo "Downloading ${url}..."
           curl -fsSL -L -o "bootstrap-aarch64.zip" "$url"
           echo "Downloaded bootstrap-aarch64.zip ($(stat --printf='%s' bootstrap-aarch64.zip) bytes)"
@@ -56,6 +73,9 @@ jobs:
           PACKAGE_VARIANT: ${{ matrix.package_variant }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          BOTDROP_BOOTSTRAP_BASE_URL: ${{ github.event.inputs.bootstrap_base_url }}
+          BOTDROP_BOOTSTRAP_REQUIRE_ADB: ${{ github.event.inputs.bootstrap_require_adb || '0' }}
+          BOTDROP_BOOTSTRAP_FAIL_ON_LEGACY_PATHS: ${{ github.event.inputs.bootstrap_fail_on_legacy_paths || '0' }}
         run: |
           set -e
 

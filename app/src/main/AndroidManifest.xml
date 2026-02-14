@@ -109,9 +109,36 @@
             android:exported="false"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
+        <activity
+            android:name="app.botdrop.AutomationDiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
         <service
             android:name="app.botdrop.BotDropService"
             android:exported="false" />
+
+        <!-- BotDrop no-root UI automation -->
+        <service
+            android:name="app.botdrop.automation.AutomationControllerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Local UI automation controller" />
+        </service>
+
+        <service
+            android:name="app.botdrop.automation.BotDropAccessibilityService"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/botdrop_accessibility_service" />
+        </service>
 
         <service
             android:name="app.botdrop.GatewayMonitorService"

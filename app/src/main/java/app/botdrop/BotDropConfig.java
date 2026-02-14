@@ -374,4 +374,52 @@ public class BotDropConfig {
             }
         }
     }
+
+    /**
+     * OpenClaw 2026.2.x defaults to writing logs under /tmp/openclaw, which is not writable on
+     * Android/Termux in our environment. Ensure we always have a writable logging.file.
+     *
+     * Safe to call repeatedly; writes only when a change is made.
+     */
+    public static void ensureWritableLoggingConfig() {
+        synchronized (CONFIG_LOCK) {
+            try {
+                File configFile = new File(CONFIG_FILE);
+                if (!configFile.exists()) return;
+
+                JSONObject config = readConfig();
+                boolean changed = false;
+
+                JSONObject logging = config.optJSONObject("logging");
+                if (logging == null) {
+                    logging = new JSONObject();
+                    config.put("logging", logging);
+                    changed = true;
+                }
+
+                String file = logging.optString("file", null);
+                // Avoid /tmp/openclaw (EACCES). Use a relative path under HOME.
+                if (file == null || file.trim().isEmpty() || file.startsWith("/tmp/")) {
+                    logging.put("file", ".openclaw/openclaw.log");
+                    changed = true;
+                    Logger.logInfo(LOG_TAG, "Set logging.file to a writable path for Android/Termux");
+                }
+
+                String level = logging.optString("level", null);
+                if (level == null || level.trim().isEmpty()) {
+                    logging.put("level", "info");
+                    changed = true;
+                }
+
+                if (changed) {
+                    boolean ok = writeConfig(config);
+                    if (!ok) {
+                        Logger.logError(LOG_TAG, "Failed to write logging config");
+                    }
+                }
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "ensureWritableLoggingConfig failed: " + e.getMessage());
+            }
+        }
+    }
 }

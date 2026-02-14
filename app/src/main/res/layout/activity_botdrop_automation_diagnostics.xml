@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/botdrop_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Automation Diagnostics"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/botdrop_on_background"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btn_diag_open_accessibility_settings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Accessibility Settings"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_outline_bg"
+                android:textColor="@color/botdrop_accent" />
+
+            <Button
+                android:id="@+id/btn_diag_refresh"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Refresh"
+                android:textAllCaps="false"
+                android:background="@drawable/botdrop_button_bg"
+                android:textColor="#1A1A1A"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/automation_diag_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/botdrop_card_bg"
+            android:padding="12dp"
+            android:text="—"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:textColor="@color/botdrop_on_background"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/btn_diag_dump_tree_delayed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dump After 3 Seconds"
+            android:textAllCaps="false"
+            android:background="@drawable/botdrop_button_outline_bg"
+            android:textColor="@color/botdrop_accent"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Recent Socket Requests"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/botdrop_secondary_text"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/automation_diag_history"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/botdrop_card_bg"
+            android:padding="12dp"
+            android:text="—"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:textColor="@color/botdrop_secondary_text"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Active Window Tree"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/botdrop_secondary_text"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/automation_diag_tree"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/botdrop_card_bg"
+            android:padding="12dp"
+            android:text="—"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:textColor="@color/botdrop_secondary_text"
+            android:layout_marginBottom="12dp" />
+    </LinearLayout>
+</ScrollView>
