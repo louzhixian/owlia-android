@@ -1,10 +1,6 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - master
-      - 'github-releases/**'
   pull_request:
     branches:
       - master
