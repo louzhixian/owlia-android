@@ -178,11 +178,28 @@
                         android:id="@+id/btn_check_openclaw_update"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Check for updates"
+                        android:text="Check OpenClaw updates"
                         android:textSize="13sp"
-                        android:textColor="@color/botdrop_accent"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="0dp" />
+                        android:textColor="#1A1A1A"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="7dp"
+                        android:paddingBottom="7dp"
+                        android:background="@drawable/botdrop_button_bg"
+                        android:gravity="center"
+                        android:layout_marginStart="8dp"
+                        android:minHeight="32dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
 
                     <TextView
                         android:id="@+id/btn_view_openclaw_log"
@@ -190,21 +207,35 @@
                         android:layout_height="wrap_content"
                         android:text="View log"
                         android:textSize="13sp"
-                        android:textColor="@color/botdrop_accent"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="0dp" />
-                </LinearLayout>
+                        android:textColor="#1A1A1A"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="7dp"
+                        android:paddingBottom="7dp"
+                        android:background="@drawable/botdrop_button_bg"
+                        android:gravity="center"
+                        android:minHeight="32dp"
+                        android:layout_marginEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true" />
 
-                <TextView
-                    android:id="@+id/btn_open_openclaw_web_ui"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Open Web UI"
-                    android:textSize="13sp"
-                    android:textColor="@color/botdrop_accent"
-                    android:paddingStart="0dp"
-                    android:paddingEnd="0dp" />
+                    <TextView
+                        android:id="@+id/btn_open_openclaw_web_ui"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Open Web UI"
+                        android:textSize="13sp"
+                        android:textColor="#1A1A1A"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="7dp"
+                        android:paddingBottom="7dp"
+                        android:background="@drawable/botdrop_button_bg"
+                        android:gravity="center"
+                        android:minHeight="32dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
 
         </LinearLayout>
 
@@ -276,12 +307,15 @@
                     android:id="@+id/telegram_channel_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="?android:attr/selectableItemBackground"
+                    android:background="@drawable/botdrop_card_bg"
                     android:clickable="true"
                     android:focusable="true"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingVertical="4dp">
+                    android:paddingVertical="10dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:foreground="?android:attr/selectableItemBackground">
 
                     <TextView
                         android:layout_width="0dp"
@@ -298,6 +332,14 @@
                         android:text="● Connected"
                         android:textSize="14sp"
                         android:textColor="#4CAF50" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="›"
+                        android:textSize="16sp"
+                        android:textColor="@color/botdrop_secondary_text" />
                 </LinearLayout>
 
                 <LinearLayout

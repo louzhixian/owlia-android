@@ -2401,7 +2401,7 @@ public class DashboardActivity extends Activity {
         }
 
         mOpenclawCheckUpdateButton.setEnabled(false);
-        mOpenclawCheckUpdateButton.setText("Checking...");
+        mOpenclawCheckUpdateButton.setText("Checking OpenClaw...");
         mOpenclawLatestUpdateVersion = null;
         mOpenclawManualCheckRequested = true;
 
@@ -2409,7 +2409,7 @@ public class DashboardActivity extends Activity {
             @Override
             public void onUpdateAvailable(String current, String latest) {
                 mOpenclawCheckUpdateButton.setEnabled(true);
-                mOpenclawCheckUpdateButton.setText("Check for updates");
+                mOpenclawCheckUpdateButton.setText("Check OpenClaw updates");
                 mOpenclawManualCheckRequested = false;
                 showOpenclawUpdateDialog(current, latest, true);
             }
@@ -2417,7 +2417,7 @@ public class DashboardActivity extends Activity {
             @Override
             public void onNoUpdate() {
                 mOpenclawCheckUpdateButton.setEnabled(true);
-                mOpenclawCheckUpdateButton.setText("Check for updates");
+                mOpenclawCheckUpdateButton.setText("Check OpenClaw updates");
                 mOpenclawManualCheckRequested = false;
                 dismissOpenclawUpdateDialog();
                 Toast.makeText(DashboardActivity.this, "Already up to date", Toast.LENGTH_SHORT).show();
@@ -2449,13 +2449,7 @@ public class DashboardActivity extends Activity {
             .setTitle("Update available")
             .setMessage(content)
             .setCancelable(true)
-            .setPositiveButton(manualCheck ? "Open" : "Update", (d, w) -> {
-                if (manualCheck) {
-                    openBotdropWebsite();
-                } else {
-                    startOpenclawUpdate(updateVersion);
-                }
-            })
+            .setPositiveButton("Update", (d, w) -> startOpenclawUpdate(updateVersion))
             .setNeutralButton("Later", null)
             .setNegativeButton("Dismiss", (d, w) -> dismissOpenclawUpdate(updateVersion))
             .setOnDismissListener(dialog -> {
